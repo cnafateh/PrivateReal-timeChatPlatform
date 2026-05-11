@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Django
+db.sqlite3
+*.sqlite3
+*.sqlite3-journal
+/staticfiles/
+/static_root/
+/media/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+*.tar
+*.tar.gz
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Secrets
+*.pem
+*.key
+*.crt
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Uploads
+uploads/
