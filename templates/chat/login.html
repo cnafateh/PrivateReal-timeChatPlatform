@@ -1,174 +1,163 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>ورود به چت</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        
-        .login-container {
-            width: 100%;
-            max-width: 400px;
-            margin: 0 auto;
-        }
-        
-        .card {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-        
-        .card-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px 20px;
-            text-align: center;
-        }
-        
-        .card-header h4 {
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-        }
-        
-        .card-body {
-            padding: 30px 25px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 500;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-        
-        .form-control:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
-        }
-        
-        .alert {
-            padding: 12px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .text-center {
-            text-align: center;
-            margin-top: 20px;
-        }
-        
-        .text-center a {
-            color: #667eea;
-            text-decoration: none;
-        }
-        
-        /* موبایل */
-        @media (max-width: 480px) {
-            .card-header h4 {
-                font-size: 1.5rem;
-            }
-            
-            .card-body {
-                padding: 20px;
-            }
-            
-            .form-control {
-                padding: 10px 12px;
-                font-size: 14px;
-            }
-            
-            .btn {
-                padding: 12px;
-                font-size: 14px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="login-container">
-        <div class="card">
-            <div class="card-header">
-                <h4>💬 چت خصوصی</h4>
-                <p>وارد حساب خود شوید</p>
+{% extends 'chat/base.html' %}
+
+
+{% block title %}
+Sign in | Pulse
+{% endblock %}
+
+
+{% block body_class %}
+auth-page
+{% endblock %}
+
+
+{% block content %}
+
+<div class="auth-shell">
+
+
+    <section class="auth-visual">
+
+        <div>
+
+            <div class="brand">
+
+                <span class="brand-mark">
+
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                    >
+
+                        <path
+                            d="M21 12a8.4 8.4 0 0 1-9 8.5 9.5 9.5 0 0 1-4-.9L3 21l1.5-4.3A8.5 8.5 0 1 1 21 12Z"
+                        />
+
+                    </svg>
+
+                </span>
+
+                Pulse
+
             </div>
-            <div class="card-body">
-                {% if messages %}
-                    {% for message in messages %}
-                        <div class="alert">{{ message }}</div>
-                    {% endfor %}
-                {% endif %}
-                
-                <form method="POST">
-                    {% csrf_token %}
-                    <div class="form-group">
-                        <label>نام کاربری</label>
-                        <input type="text" name="username" class="form-control" required autofocus>
-                    </div>
-                    <div class="form-group">
-                        <label>رمز عبور</label>
-                        <input type="password" name="password" class="form-control" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">ورود</button>
-                </form>
-                
-                <div class="text-center">
-                    <a href="{% url 'register' %}">حساب کاربری ندارید؟ ثبت‌نام کنید</a>
-                </div>
-            </div>
+
+
+            <h2 class="big-title">
+                Simple conversations. Real time.
+            </h2>
+
+
+            <p>
+                A minimal real-time messaging experience built for fast,
+                private conversations.
+            </p>
+
         </div>
-    </div>
-</body>
-</html>
+
+
+        <span class="glass-note">
+            Private · Real-time · Minimal
+        </span>
+
+    </section>
+
+
+
+    <section class="auth-form-side">
+
+        <h1>
+            Welcome back
+        </h1>
+
+
+        <p class="auth-subtitle">
+            Sign in to continue your conversations.
+        </p>
+
+
+        {% if messages %}
+
+            {% for message in messages %}
+
+                <div class="alert error">
+                    {{ message }}
+                </div>
+
+            {% endfor %}
+
+        {% endif %}
+
+
+        <form
+            method="post"
+            novalidate
+        >
+
+            {% csrf_token %}
+
+
+            <div class="auth-field">
+
+                <label for="username">
+                    Username
+                </label>
+
+                <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    autocomplete="username"
+                    placeholder="Enter your username"
+                    required
+                    autofocus
+                >
+
+            </div>
+
+
+            <div class="auth-field">
+
+                <label for="password">
+                    Password
+                </label>
+
+                <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autocomplete="current-password"
+                    placeholder="Enter your password"
+                    required
+                >
+
+            </div>
+
+
+            <button
+                class="primary-button"
+                type="submit"
+            >
+                Sign in
+            </button>
+
+        </form>
+
+
+        <div class="auth-switch">
+
+            Don't have an account?
+
+            <a href="{% url 'register' %}">
+                Create one
+            </a>
+
+        </div>
+
+    </section>
+
+
+</div>
+
+{% endblock %}

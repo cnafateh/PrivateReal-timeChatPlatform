@@ -1,257 +1,317 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>پیام‌های من</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f0f2f5;
-            min-height: 100vh;
-        }
-        
-        .navbar {
-            background: #2d3748;
-            color: white;
-            padding: 15px 0;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        .navbar .container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .navbar-brand {
-            font-size: 1.3rem;
-            font-weight: bold;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        
-        .nav-links a {
-            color: white;
-            text-decoration: none;
-            padding: 8px 12px;
-            border-radius: 8px;
-            transition: background 0.3s;
-            font-size: 0.9rem;
-        }
-        
-        .nav-links a:hover {
-            background: rgba(255,255,255,0.1);
-        }
-        
-        .username {
-            font-weight: bold;
-        }
-        
-        .card {
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            overflow: hidden;
-            margin-top: 20px;
-        }
-        
-        .card-header {
-            background: white;
-            padding: 20px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-        
-        .card-header h3 {
-            color: #333;
-            font-size: 1.3rem;
-        }
-        
-        .card-body {
-            padding: 0;
-        }
-        
-        .chat-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 20px;
-            border-bottom: 1px solid #f0f0f0;
-            text-decoration: none;
-            color: inherit;
-            transition: background 0.3s;
-            cursor: pointer;
-        }
-        
-        .chat-item:hover {
-            background: #f8f9fa;
-        }
-        
-        .chat-info {
-            flex: 1;
-        }
-        
-        .chat-name {
-            font-weight: bold;
-            font-size: 1rem;
-            margin-bottom: 5px;
-            color: #333;
-        }
-        
-        .last-message {
-            font-size: 0.85rem;
-            color: #666;
-        }
-        
-        .unread-badge {
-            background: #dc3545;
-            color: white;
-            border-radius: 50%;
-            padding: 5px 10px;
-            font-size: 0.75rem;
-            min-width: 25px;
-            text-align: center;
-            font-weight: bold;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-        }
-        
-        .empty-state p {
-            color: #666;
-            margin-bottom: 20px;
-            font-size: 1rem;
-        }
-        
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 1rem;
-            text-decoration: none;
-            display: inline-block;
-            transition: all 0.3s;
-        }
-        
-        .btn-success {
-            background: #28a745;
-            color: white;
-        }
-        
-        .btn-success:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(40,167,69,0.3);
-        }
-        
-        /* موبایل */
-        @media (max-width: 600px) {
-            .navbar .container {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .nav-links {
-                justify-content: center;
-            }
-            
-            .chat-item {
-                padding: 12px 15px;
-            }
-            
-            .chat-name {
-                font-size: 0.95rem;
-            }
-            
-            .last-message {
-                font-size: 0.8rem;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .container {
-                padding: 0 15px;
-            }
-            
-            .card-header h3 {
-                font-size: 1.1rem;
-            }
-            
-            .btn {
-                padding: 10px 20px;
-                font-size: 0.9rem;
-            }
-        }
-    </style>
-</head>
-<body>
-    <nav class="navbar">
-        <div class="container">
-            <span class="navbar-brand">💬 چت خصوصی</span>
-            <div class="nav-links">
-                <span class="username">👤 {{ user.username }}</span>
-                <a href="{% url 'search_user' %}">🔍 جستجو</a>
-                <a href="{% url 'logout' %}">🚪 خروج</a>
-            </div>
-        </div>
-    </nav>
+{% extends 'chat/base.html' %}
 
-    <div class="container">
-        <div class="card">
-            <div class="card-header">
-                <h3>📋 پیام‌های اخیر</h3>
+
+{% block title %}
+Messages | Pulse
+{% endblock %}
+
+
+{% block content %}
+
+<div class="app-shell">
+
+
+    <aside class="sidebar">
+
+        <div class="sidebar-head">
+
+            <div class="brand-row">
+
+                <div class="brand">
+
+                    <span class="brand-mark">
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                        >
+
+                            <path
+                                d="M21 12a8.4 8.4 0 0 1-9 8.5 9.5 9.5 0 0 1-4-.9L3 21l1.5-4.3A8.5 8.5 0 1 1 21 12Z"
+                            />
+
+                        </svg>
+
+                    </span>
+
+                    <span>
+                        Pulse
+                    </span>
+
+                </div>
+
+
+                <a
+                    class="icon-button"
+                    href="{% url 'search_user' %}"
+                    aria-label="New chat"
+                    title="New chat"
+                >
+
+                    <svg
+                        class="icon"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                    >
+
+                        <path d="M12 5v14M5 12h14"/>
+
+                    </svg>
+
+                </a>
+
             </div>
-            <div class="card-body">
-                {% if chats %}
-                    {% for chat_data in chats %}
-                        <a href="{% url 'private_chat' chat_data.other_user.id %}" class="chat-item">
-                            <div class="chat-info">
-                                <div class="chat-name">@{{ chat_data.other_user.username }}</div>
-                                {% if chat_data.last_message %}
-                                    <div class="last-message">
-                                        {{ chat_data.last_message.content|truncatechars:40 }}
-                                    </div>
-                                {% else %}
-                                    <div class="last-message">شروع گفتگو</div>
-                                {% endif %}
-                            </div>
-                            {% if chat_data.unread_count > 0 %}
-                                <div class="unread-badge">{{ chat_data.unread_count }}</div>
-                            {% endif %}
-                        </a>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state">
-                        <p>📭 هنوز هیچ گفتگویی ندارید</p>
-                        <a href="{% url 'search_user' %}" class="btn btn-success">🔍 جستجوی کاربر جدید</a>
-                    </div>
-                {% endif %}
-            </div>
+
+
+            <a
+                href="{% url 'search_user' %}"
+                class="search-field"
+            >
+
+                <svg
+                    class="icon-sm"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                >
+
+                    <circle cx="11" cy="11" r="7"/>
+
+                    <path d="m20 20-3.5-3.5"/>
+
+                </svg>
+
+
+                <input
+                    type="text"
+                    placeholder="Search or start a new chat"
+                    readonly
+                >
+
+            </a>
+
         </div>
-    </div>
-</body>
-</html>
+
+
+        <div class="section-label">
+            Recent conversations
+        </div>
+
+
+        <div class="conversation-list">
+
+            {% for item in chats %}
+
+                <a
+                    href="{% url 'private_chat' item.other_user.id %}"
+                    class="chat-row"
+                >
+
+                    <div class="avatar">
+
+                        {{ item.other_user.username|slice:':1' }}
+
+                    </div>
+
+
+                    <div class="chat-copy">
+
+                        <div class="chat-title-line">
+
+                            <span class="chat-title">
+
+                                @{{ item.other_user.username }}
+
+                            </span>
+
+
+                            {% if item.last_message %}
+
+                                <span class="chat-time">
+
+                                    {{ item.last_message.timestamp|date:'H:i' }}
+
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+
+                        <div class="chat-title-line">
+
+                            <span class="chat-preview">
+
+                                {% if item.last_message %}
+
+                                    {% if item.last_message.sender == user %}
+                                        You:
+                                    {% endif %}
+
+                                    {{ item.last_message.content|truncatechars:35 }}
+
+                                {% else %}
+
+                                    Start a conversation
+
+                                {% endif %}
+
+                            </span>
+
+
+                            {% if item.unread_count %}
+
+                                <span class="badge">
+
+                                    {{ item.unread_count }}
+
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+                </a>
+
+
+            {% empty %}
+
+                <div class="empty-chat">
+
+                    <div class="welcome-orb">
+
+                        <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.6"
+                        >
+
+                            <path d="M8 10h8M8 14h5"/>
+
+                            <path
+                                d="M21 12a8.4 8.4 0 0 1-9 8.5 9.5 9.5 0 0 1-4-.9L3 21l1.5-4.3A8.5 8.5 0 1 1 21 12Z"
+                            />
+
+                        </svg>
+
+                    </div>
+
+                    <h2>
+                        No conversations yet
+                    </h2>
+
+                    <p>
+                        Find someone and send your first message.
+                    </p>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+
+        <div class="sidebar-footer">
+
+            <div class="profile-mini">
+
+                <div class="avatar small">
+                    {{ user.username|slice:':1' }}
+                </div>
+
+
+                <div class="user-copy">
+
+                    <strong>
+                        @{{ user.username }}
+                    </strong>
+
+                    <span>
+                        Online
+                    </span>
+
+                </div>
+
+
+                <a
+                    class="icon-button"
+                    href="{% url 'logout' %}"
+                    title="Log out"
+                    aria-label="Log out"
+                >
+
+                    <svg
+                        class="icon-sm"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                    >
+
+                        <path d="M10 17l5-5-5-5M15 12H3"/>
+
+                        <path
+                            d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"
+                        />
+
+                    </svg>
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+
+    <main class="main-panel">
+
+        <div class="empty-chat">
+
+            <div class="welcome-orb">
+
+                <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                >
+
+                    <path d="M7 8h10M7 12h7"/>
+
+                    <path
+                        d="M12 21a9 9 0 1 0-8.4-5.8L3 21l5.8-.6A9 9 0 0 0 12 21Z"
+                    />
+
+                </svg>
+
+            </div>
+
+
+            <h2>
+                Your conversations
+            </h2>
+
+
+            <p>
+                Select a conversation or start a new one.
+            </p>
+
+        </div>
+
+    </main>
+
+
+</div>
+
+{% endblock %}
