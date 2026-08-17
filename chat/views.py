@@ -49,9 +49,9 @@ def login_view(request):
             )
 
         messages.error(
-            request,
-            "نام کاربری یا رمز عبور اشتباه است",
-        )
+    request,
+    "Invalid username or password.",
+)
 
     return render(
         request,
@@ -214,9 +214,7 @@ def search_user(request):
 
             if found_user == request.user:
 
-                message = (
-                    "نمی‌توانید با خودتان چت کنید!"
-                )
+                message = "You cannot start a conversation with yourself."
 
             else:
 
@@ -227,9 +225,7 @@ def search_user(request):
 
         except User.DoesNotExist:
 
-            message = (
-                f'کاربری با آیدی "{query}" یافت نشد'
-            )
+            message = f'No user found with the username "{query}".'
 
 
     return render(
@@ -264,7 +260,7 @@ def private_chat(
 
         messages.warning(
             request,
-            "نمی‌توانید با خودتان گفتگو کنید.",
+            "You cannot start a conversation with yourself.",
         )
 
         return redirect(
@@ -282,7 +278,7 @@ def private_chat(
 
         messages.error(
             request,
-            "خطا در ایجاد گفتگو",
+            "Unable to create the conversation.",
         )
 
         return redirect(

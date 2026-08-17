@@ -220,7 +220,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # ---------------------------------------------------------
 
-LANGUAGE_CODE = "fa-ir"
+LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = os.getenv(
     "TIME_ZONE",
