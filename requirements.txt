@@ -7,3 +7,4 @@ python-dotenv==1.0.0
 channels-redis
 daphne
 psycopg
+whitenoise==6.9.0
