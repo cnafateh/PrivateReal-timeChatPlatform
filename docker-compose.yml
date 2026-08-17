@@ -1,28 +1,134 @@
 services:
+
   web:
+
     build: .
+
     container_name: chatapp_web
-    ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-      - static_volume:/app/staticfiles
+
+    env_file:
+      - .env
+
     environment:
-      - DJANGO_SETTINGS_MODULE=chatapp_project.settings
-      - DEBUG=True
+
+      DB_HOST: db
+
+      DB_PORT: 5432
+
+      DB_NAME: ${DB_NAME:-chatapp}
+
+      DB_USER: ${DB_USER:-chatapp}
+
+      DB_PASSWORD: ${DB_PASSWORD:-change-me}
+
+      REDIS_URL: redis://redis:6379/0
+
+    volumes:
+      - static_volume:/app/staticfiles
+
+    depends_on:
+
+      db:
+        condition: service_healthy
+
+      redis:
+        condition: service_healthy
+
+    expose:
+      - "8000"
+
     restart: unless-stopped
+
+
+  db:
+
+    image: postgres:17-alpine
+
+    container_name: chatapp_db
+
+    environment:
+
+      POSTGRES_DB: ${DB_NAME:-chatapp}
+
+      POSTGRES_USER: ${DB_USER:-chatapp}
+
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DB_USER:-chatapp} -d ${DB_NAME:-chatapp}"
+        ]
+
+      interval: 5s
+
+      timeout: 5s
+
+      retries: 10
+
+    restart: unless-stopped
+
+
+  redis:
+
+    image: redis:7-alpine
+
+    container_name: chatapp_redis
+
+    command:
+      redis-server --appendonly yes
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "ping"
+        ]
+
+      interval: 5s
+
+      timeout: 3s
+
+      retries: 10
+
+    restart: unless-stopped
+
 
   nginx:
+
     image: nginx:alpine
+
     container_name: chatapp_nginx
+
     ports:
       - "80:80"
+
     volumes:
-      - static_volume:/static
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+
+      - static_volume:/static:ro
+
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
     depends_on:
       - web
+
     restart: unless-stopped
 
+
 volumes:
+
   static_volume:
+
+  postgres_data:
+
+  redis_data:
