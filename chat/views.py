@@ -1,118 +1,390 @@
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, authenticate, logout
-from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth.models import User
 from django.contrib import messages
-from django.http import JsonResponse
-from django.db import models
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from django.db.models import Q
-from .models import PrivateChat, Message
+from django.http import JsonResponse
+from django.shortcuts import (
+    get_object_or_404,
+    redirect,
+    render,
+)
+
+from .models import Message, PrivateChat
+
 
 def login_view(request):
-    if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
-        user = authenticate(request, username=username, password=password)
+
+    if request.user.is_authenticated:
+        return redirect("inbox")
+
+    if request.method == "POST":
+
+        username = request.POST.get(
+            "username",
+            "",
+        ).strip()
+
+        password = request.POST.get(
+            "password",
+            "",
+        )
+
+        user = authenticate(
+            request,
+            username=username,
+            password=password,
+        )
+
         if user:
-            login(request, user)
-            return redirect('inbox')
-        else:
-            messages.error(request, 'نام کاربری یا رمز عبور اشتباه است')
-    return render(request, 'chat/login.html')
+
+            login(
+                request,
+                user,
+            )
+
+            return redirect(
+                "inbox"
+            )
+
+        messages.error(
+            request,
+            "نام کاربری یا رمز عبور اشتباه است",
+        )
+
+    return render(
+        request,
+        "chat/login.html",
+    )
+
 
 def register_view(request):
-    if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+
+    if request.user.is_authenticated:
+        return redirect("inbox")
+
+    if request.method == "POST":
+
+        form = UserCreationForm(
+            request.POST
+        )
+
         if form.is_valid():
+
             user = form.save()
-            login(request, user)
-            return redirect('inbox')
+
+            login(
+                request,
+                user,
+            )
+
+            return redirect(
+                "inbox"
+            )
+
     else:
+
         form = UserCreationForm()
-    return render(request, 'chat/register.html', {'form': form})
+
+
+    return render(
+        request,
+        "chat/register.html",
+        {
+            "form": form,
+        },
+    )
+
 
 def logout_view(request):
+
     logout(request)
-    return redirect('login')
+
+    return redirect(
+        "login"
+    )
+
 
 @login_required
 def inbox(request):
-    """لیست چت‌های خصوصی کاربر"""
-    chats = PrivateChat.objects.filter(
-        models.Q(user1=request.user) | models.Q(user2=request.user)
+
+    chats = (
+        PrivateChat.objects
+        .filter(
+            Q(user1=request.user)
+            |
+            Q(user2=request.user)
+        )
+        .select_related(
+            "user1",
+            "user2",
+        )
     )
-    
+
+
     chats_data = []
+
+
     for chat in chats:
-        other_user = chat.get_other_user(request.user)
-        last_message = chat.messages.last()
-        unread_count = chat.messages.filter(receiver=request.user, is_read=False).count()
-        
-        chats_data.append({
-            'chat': chat,
-            'other_user': other_user,
-            'last_message': last_message,
-            'unread_count': unread_count
-        })
-    
-    return render(request, 'chat/inbox.html', {'chats': chats_data})
+
+        other_user = chat.get_other_user(
+            request.user
+        )
+
+
+        last_message = (
+            chat.messages
+            .select_related(
+                "sender"
+            )
+            .last()
+        )
+
+
+        unread_count = (
+            chat.messages
+            .filter(
+                receiver=request.user,
+                is_read=False,
+            )
+            .count()
+        )
+
+
+        chats_data.append(
+            {
+                "chat":
+                chat,
+
+                "other_user":
+                other_user,
+
+                "last_message":
+                last_message,
+
+                "unread_count":
+                unread_count,
+            }
+        )
+
+
+    chats_data.sort(
+        key=lambda item: (
+            item["last_message"].timestamp
+            if item["last_message"]
+            else item["chat"].created_at
+        ),
+        reverse=True,
+    )
+
+
+    return render(
+        request,
+        "chat/inbox.html",
+        {
+            "chats":
+            chats_data,
+        },
+    )
+
 
 @login_required
 def search_user(request):
-    """جستجوی کاربر با username"""
-    query = request.GET.get('q', '').strip()
+
+    query = request.GET.get(
+        "q",
+        "",
+    ).strip()
+
+
     users = []
+
     message = None
-    
+
+
     if query:
+
         try:
-            # جستجوی دقیق با username
-            user = User.objects.get(Q(username__iexact=query))
-            if user != request.user:
-                users = [user]
+
+            found_user = User.objects.get(
+                username__iexact=query
+            )
+
+
+            if found_user == request.user:
+
+                message = (
+                    "نمی‌توانید با خودتان چت کنید!"
+                )
+
             else:
-                message = 'نمی‌توانید با خودتان چت کنید!'
+
+                users = [
+                    found_user
+                ]
+
+
         except User.DoesNotExist:
-            message = f'کاربری با آیدی "{query}" یافت نشد'
-    
-    return render(request, 'chat/search_user.html', {
-        'users': users,
-        'query': query,
-        'message': message
-    })
+
+            message = (
+                f'کاربری با آیدی "{query}" یافت نشد'
+            )
+
+
+    return render(
+        request,
+        "chat/search_user.html",
+        {
+            "users":
+            users,
+
+            "query":
+            query,
+
+            "message":
+            message,
+        },
+    )
+
 
 @login_required
-def private_chat(request, user_id):
-    """صفحه چت خصوصی با یک کاربر خاص"""
-    other_user = get_object_or_404(User, id=user_id)
-    
-    # دریافت یا ساخت چت
-    chat = PrivateChat.get_or_create_chat(request.user, other_user)
-    
+def private_chat(
+    request,
+    user_id,
+):
+
+    other_user = get_object_or_404(
+        User,
+        id=user_id,
+    )
+
+
+    if other_user == request.user:
+
+        messages.warning(
+            request,
+            "نمی‌توانید با خودتان گفتگو کنید.",
+        )
+
+        return redirect(
+            "inbox"
+        )
+
+
+    chat = PrivateChat.get_or_create_chat(
+        request.user,
+        other_user,
+    )
+
+
     if not chat:
-        messages.error(request, 'خطا در ایجاد چت')
-        return redirect('inbox')
-    
-    # علامت زدن پیام‌ها به عنوان خوانده شده
-    Message.objects.filter(chat=chat, receiver=request.user, is_read=False).update(is_read=True)
-    
-    # دریافت تاریخچه پیام‌ها
-    messages_history = Message.objects.filter(chat=chat).select_related('sender', 'receiver')[:100]
-    
-    return render(request, 'chat/private_chat.html', {
-        'chat': chat,
-        'other_user': other_user,
-        'messages': messages_history,
-        'username': request.user.username
-    })
+
+        messages.error(
+            request,
+            "خطا در ایجاد گفتگو",
+        )
+
+        return redirect(
+            "inbox"
+        )
+
+
+    Message.objects.filter(
+        chat=chat,
+        receiver=request.user,
+        is_read=False,
+    ).update(
+        is_read=True
+    )
+
+
+    # Get last 100 messages.
+    latest_messages = list(
+        Message.objects
+        .filter(
+            chat=chat
+        )
+        .select_related(
+            "sender",
+            "receiver",
+        )
+        .order_by(
+            "-timestamp"
+        )[:100]
+    )
+
+
+    # Reverse them again so template renders
+    # oldest -> newest.
+    latest_messages.reverse()
+
+
+    return render(
+        request,
+        "chat/private_chat.html",
+        {
+            "chat":
+            chat,
+
+            "other_user":
+            other_user,
+
+            "messages":
+            latest_messages,
+        },
+    )
+
 
 @login_required
-def get_or_create_chat_api(request, user_id):
-    """API برای شروع چت جدید (Ajax)"""
-    other_user = get_object_or_404(User, id=user_id)
-    chat = PrivateChat.get_or_create_chat(request.user, other_user)
-    
-    if chat:
-        return JsonResponse({'success': True, 'chat_id': chat.id})
-    return JsonResponse({'success': False})
+def get_or_create_chat_api(
+    request,
+    user_id,
+):
+
+    other_user = get_object_or_404(
+        User,
+        id=user_id,
+    )
+
+
+    if other_user == request.user:
+
+        return JsonResponse(
+            {
+                "success":
+                False,
+
+                "error":
+                "You cannot chat with yourself.",
+            },
+            status=400,
+        )
+
+
+    chat = PrivateChat.get_or_create_chat(
+        request.user,
+        other_user,
+    )
+
+
+    if not chat:
+
+        return JsonResponse(
+            {
+                "success":
+                False,
+            },
+            status=400,
+        )
+
+
+    return JsonResponse(
+        {
+            "success":
+            True,
+
+            "chat_id":
+            chat.id,
+        }
+    )
