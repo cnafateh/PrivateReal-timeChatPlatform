@@ -1,31 +1,68 @@
-#!/bin/bash
+#!/bin/sh
 
-echo "🚀 Starting Django Chat App..."
+set -e
 
-# بارگذاری متغیرهای محیطی از فایل .env
-if [ -f .env ]; then
-    export $(cat .env | grep -v '^#' | xargs)
-fi
 
-# اجرای مایگریشن‌ها
-echo "📦 Running migrations..."
-python manage.py makemigrations --noinput
+echo "Applying database migrations..."
+
 python manage.py migrate --noinput
 
-# ساخت خودکار سوپر یوزر (اگه از قبل نباشه)
-echo "👤 Creating superuser (if not exists)..."
-python manage.py shell << EOF
-from django.contrib.auth import get_user_model;
-User = get_user_model();
-username = "$DJANGO_SUPERUSER_USERNAME";
-email = "$DJANGO_SUPERUSER_EMAIL";
-password = "$DJANGO_SUPERUSER_PASSWORD";
-if not User.objects.filter(username=username).exists():
-    User.objects.create_superuser(username, email, password)
-    print(f"✅ Superuser '{username}' created successfully!")
-else:
-    print(f"✅ Superuser '{username}' already exists.")
-EOF
 
-echo "✅ Starting Daphne server..."
-daphne -b 0.0.0.0 -p 8000 chatapp_project.asgi:application
+echo "Collecting static files..."
+
+python manage.py collectstatic \
+    --noinput \
+    --clear
+
+
+if [ -n "${DJANGO_SUPERUSER_USERNAME:-}" ] \
+    && [ -n "${DJANGO_SUPERUSER_PASSWORD:-}" ]; then
+
+    echo "Ensuring admin user exists..."
+
+    python manage.py shell <<'PY'
+
+import os
+
+from django.contrib.auth import get_user_model
+
+
+User = get_user_model()
+
+
+username = os.environ[
+    "DJANGO_SUPERUSER_USERNAME"
+]
+
+email = os.environ.get(
+    "DJANGO_SUPERUSER_EMAIL",
+    "",
+)
+
+password = os.environ[
+    "DJANGO_SUPERUSER_PASSWORD"
+]
+
+
+if not User.objects.filter(
+    username=username
+).exists():
+
+    User.objects.create_superuser(
+        username=username,
+        email=email,
+        password=password,
+    )
+
+PY
+
+fi
+
+
+echo "Starting Daphne..."
+
+
+exec daphne \
+    -b 0.0.0.0 \
+    -p 8000 \
+    chatapp_project.asgi:application
