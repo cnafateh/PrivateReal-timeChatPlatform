@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.forms import UserCreationForm
+from .forms import RegisterForm
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.http import JsonResponse
@@ -66,7 +66,7 @@ def register_view(request):
 
     if request.method == "POST":
 
-        form = UserCreationForm(
+        form = RegisterForm(
             request.POST
         )
 
@@ -85,8 +85,7 @@ def register_view(request):
 
     else:
 
-        form = UserCreationForm()
-
+        form = RegisterForm()
 
     return render(
         request,
