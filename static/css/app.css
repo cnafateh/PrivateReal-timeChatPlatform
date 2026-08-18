@@ -2265,14 +2265,6 @@ svg {
     }
 
 
-    .app-shell:not(.chat-open) .main-panel {
-
-        display:
-            none;
-
-    }
-
-
     .main-panel {
 
         width:
@@ -2729,18 +2721,6 @@ svg {
 
     /* SEARCH PAGE */
 
-    .app-shell:not(.chat-open) {
-        display: block;
-    }
-
-    .app-shell:not(.chat-open) .sidebar {
-        display: none;
-    }
-
-    .app-shell:not(.chat-open) .main-panel {
-        display: flex;
-        height: 100dvh;
-    }
 
     .search-page-card {
         flex: 1;
@@ -2822,6 +2802,522 @@ svg {
     .search-page-card {
         padding-left: 13px;
         padding-right: 13px;
+    }
+
+}
+
+/* =========================================
+   MOBILE INBOX
+========================================= */
+
+@media (max-width: 700px) {
+
+    /*
+       Inbox becomes a full-screen conversation list.
+    */
+
+    .inbox-page {
+        width: 100%;
+        height: 100dvh;
+
+        margin: 0;
+
+        display: block;
+
+        border: 0;
+        border-radius: 0;
+
+        box-shadow: none;
+
+        overflow: hidden;
+
+        background: var(--background);
+    }
+
+
+    .inbox-page .sidebar {
+        width: 100%;
+        height: 100%;
+
+        display: flex;
+        flex-direction: column;
+
+        border: 0;
+
+        background: var(--background);
+    }
+
+
+    /*
+       Desktop empty conversation panel
+       must not exist on mobile.
+    */
+
+    .inbox-page .main-panel {
+        display: none !important;
+    }
+
+
+    /* Header */
+
+    .inbox-page .sidebar-head {
+        flex: 0 0 auto;
+
+        padding:
+            16px
+            14px
+            12px;
+    }
+
+
+    .inbox-page .brand-row {
+        margin-bottom: 14px;
+    }
+
+
+    .inbox-page .brand {
+        font-size: 17px;
+    }
+
+
+    .inbox-page .brand-mark {
+        width: 38px;
+        height: 38px;
+
+        border-radius: 13px;
+    }
+
+
+    .inbox-page .icon-button {
+        width: 38px;
+        height: 38px;
+
+        border-radius: 12px;
+    }
+
+
+    /* Search */
+
+    .inbox-page .search-field {
+        width: 100%;
+        height: 44px;
+
+        padding:
+            0 13px;
+    }
+
+
+    .inbox-page .search-field input {
+        font-size: 12px;
+    }
+
+
+    /* Label */
+
+    .inbox-page .section-label {
+        flex: 0 0 auto;
+
+        padding:
+            12px
+            15px
+            8px;
+
+        font-size: 10px;
+
+        letter-spacing: 0.6px;
+    }
+
+
+    /* Conversation scroll container */
+
+    .inbox-page .conversation-list {
+        flex: 1 1 auto;
+
+        min-height: 0;
+
+        width: 100%;
+
+        overflow-x: hidden;
+        overflow-y: auto;
+
+        padding:
+            0
+            8px
+            12px;
+
+        overscroll-behavior: contain;
+    }
+
+
+    /*
+       Conversation item
+    */
+
+    .inbox-page .chat-row {
+        width: 100%;
+
+        min-width: 0;
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 11px;
+
+        margin: 0 0 4px;
+
+        padding:
+            11px
+            10px;
+
+        border-radius: 15px;
+    }
+
+
+    .inbox-page .chat-row:hover {
+        transform: none;
+    }
+
+
+    /* Avatar */
+
+    .inbox-page .chat-row .avatar {
+        width: 45px;
+        height: 45px;
+
+        flex: 0 0 45px;
+
+        border-radius: 14px;
+
+        font-size: 15px;
+    }
+
+
+    /*
+       Important:
+       allows text column to shrink instead
+       of making the entire row overflow.
+    */
+
+    .inbox-page .chat-copy {
+        flex: 1 1 auto;
+
+        min-width: 0;
+
+        overflow: hidden;
+    }
+
+
+    .inbox-page .chat-title-line {
+        width: 100%;
+
+        min-width: 0;
+
+        display: flex;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        gap: 8px;
+    }
+
+
+    /* Username */
+
+    .inbox-page .chat-title {
+        flex: 1 1 auto;
+
+        min-width: 0;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+
+        font-size: 13px;
+    }
+
+
+    /* Time */
+
+    .inbox-page .chat-time {
+        flex: 0 0 auto;
+
+        margin-left: 8px;
+
+        font-size: 9px;
+
+        white-space: nowrap;
+    }
+
+
+    /*
+       Bottom row containing preview + badge
+    */
+
+    .inbox-page .chat-preview {
+        flex: 1 1 auto;
+
+        min-width: 0;
+
+        max-width: none;
+
+        margin-top: 4px;
+
+        overflow: hidden;
+
+        text-overflow: ellipsis;
+
+        white-space: nowrap;
+
+        font-size: 11px;
+
+        line-height: 1.4;
+    }
+
+
+    .inbox-page .badge {
+        flex: 0 0 auto;
+
+        min-width: 20px;
+
+        margin-left: 7px;
+    }
+
+
+    /*
+       Current user at bottom
+    */
+
+    .inbox-page .sidebar-footer {
+        flex: 0 0 auto;
+
+        width: 100%;
+
+        padding:
+            10px
+            12px
+            calc(
+                10px +
+                env(safe-area-inset-bottom)
+            );
+
+        background: var(--background);
+    }
+
+
+    .inbox-page .profile-mini {
+        width: 100%;
+
+        gap: 9px;
+    }
+
+
+    .inbox-page .profile-mini .user-copy {
+        flex: 1;
+
+        min-width: 0;
+    }
+
+}
+
+
+
+/* =========================================
+   SMALL MOBILE INBOX
+========================================= */
+
+@media (max-width: 420px) {
+
+    .inbox-page .sidebar-head {
+        padding:
+            13px
+            10px
+            10px;
+    }
+
+
+    .inbox-page .brand-row {
+        margin-bottom: 12px;
+    }
+
+
+    .inbox-page .conversation-list {
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+
+
+    .inbox-page .chat-row {
+        padding:
+            10px
+            8px;
+
+        gap: 10px;
+    }
+
+
+    .inbox-page .chat-row .avatar {
+        width: 42px;
+        height: 42px;
+
+        flex-basis: 42px;
+
+        border-radius: 13px;
+    }
+
+
+    .inbox-page .chat-title {
+        font-size: 12px;
+    }
+
+
+    .inbox-page .chat-preview {
+        font-size: 10px;
+    }
+
+}
+
+
+
+/* =========================================
+   MOBILE USER SEARCH
+========================================= */
+
+@media (max-width: 700px) {
+
+    .search-page {
+        width: 100%;
+
+        height: 100dvh;
+
+        margin: 0;
+
+        display: block;
+
+        border: 0;
+        border-radius: 0;
+
+        box-shadow: none;
+
+        overflow: hidden;
+    }
+
+
+    /*
+       Search page does NOT need
+       the desktop sidebar on mobile.
+    */
+
+    .search-page .sidebar {
+        display: none;
+    }
+
+
+    .search-page .main-panel {
+        width: 100%;
+        height: 100dvh;
+
+        display: flex;
+
+        flex-direction: column;
+
+        overflow: hidden;
+    }
+
+
+    .search-page .topbar {
+        flex: 0 0 66px;
+
+        height: 66px;
+
+        min-height: 66px;
+
+        padding:
+            0
+            14px;
+    }
+
+
+    .search-page .search-page-card {
+        flex: 1;
+
+        min-height: 0;
+
+        width: 100%;
+
+        padding:
+            22px
+            16px
+            calc(
+                22px +
+                env(safe-area-inset-bottom)
+            );
+
+        overflow-y: auto;
+    }
+
+
+    .search-page .search-form {
+        width: 100%;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: 10px;
+    }
+
+
+    .search-page .search-form .search-field {
+        width: 100%;
+
+        flex: none;
+    }
+
+
+    .search-page .compact-button {
+        width: 100%;
+
+        height: 46px;
+    }
+
+
+    .search-page .result-card {
+        width: 100%;
+
+        display: grid;
+
+        grid-template-columns:
+            auto
+            minmax(0, 1fr);
+
+        align-items: center;
+
+        gap: 12px;
+
+        padding: 13px;
+    }
+
+
+    .search-page .result-copy {
+        min-width: 0;
+    }
+
+
+    .search-page .start-chat {
+        grid-column:
+            1 / -1;
+
+        width: 100%;
+
+        text-align: center;
+
+        padding:
+            11px
+            14px;
     }
 
 }
