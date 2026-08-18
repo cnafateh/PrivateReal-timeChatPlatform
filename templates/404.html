@@ -1,0 +1,209 @@
+{% load static %}
+
+<!doctype html>
+
+<html lang="en" dir="ltr">
+
+<head>
+
+    <meta charset="utf-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta
+        name="theme-color"
+        content="#070a12"
+    >
+
+    <title>
+        Page not found | Pulse
+    </title>
+
+    <link
+        rel="icon"
+        type="image/png"
+        href="{% static 'images/favicon.png' %}"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{% static 'css/error-404.css' %}"
+    >
+
+</head>
+
+
+<body>
+
+    <main class="error-shell">
+
+        <section class="error-copy">
+
+            <a
+                href="{% url 'inbox' %}"
+                class="brand"
+            >
+
+                <span class="brand-mark">
+                    <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                    >
+                        <path
+                            d="M21 12a8.4 8.4 0 0 1-9 8.5 9.5 9.5 0 0 1-4-.9L3 21l1.5-4.3A8.5 8.5 0 1 1 21 12Z"
+                        />
+                    </svg>
+                </span>
+
+                Pulse
+
+            </a>
+
+
+            <div class="error-code">
+                404
+            </div>
+
+
+            <h1>
+                Lost signal.
+            </h1>
+
+
+            <p>
+                This page doesn't exist, but you can catch a few signals
+                while you're here.
+            </p>
+
+
+            <div class="error-actions">
+
+                <a
+                    href="{% url 'inbox' %}"
+                    class="primary-action"
+                >
+                    Back to Pulse
+                </a>
+
+
+                <button
+                    id="start-game"
+                    class="secondary-action"
+                    type="button"
+                >
+                    Play Signal Catch
+                </button>
+
+            </div>
+
+        </section>
+
+
+        <section class="game-card">
+
+            <div class="game-head">
+
+                <div>
+
+                    <span class="game-label">
+                        MINI GAME
+                    </span>
+
+                    <h2>
+                        Signal Catch
+                    </h2>
+
+                </div>
+
+
+                <div class="scoreboard">
+
+                    <div>
+                        <span>Score</span>
+                        <strong id="score">0</strong>
+                    </div>
+
+                    <div>
+                        <span>Combo</span>
+                        <strong id="combo">0x</strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div
+                id="game-area"
+                class="game-area"
+            >
+
+                <div
+                    id="game-intro"
+                    class="game-intro"
+                >
+
+                    <div class="pulse-preview"></div>
+
+                    <h3>
+                        Catch the signal
+                    </h3>
+
+                    <p>
+                        Tap the pulses before they disappear.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="game-footer">
+
+                <span id="game-status">
+                    Ready
+                </span>
+
+                <span>
+                    Best:
+                    <strong id="best-score">
+                        0
+                    </strong>
+                </span>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <script
+        src="{% static 'js/error-404.js' %}"
+        defer
+    ></script>
+
+</body>
+
+</html>

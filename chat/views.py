@@ -383,3 +383,13 @@ def get_or_create_chat_api(
             chat.id,
         }
     )
+
+def custom_404(
+    request,
+    exception,
+):
+    return render(
+        request,
+        "404.html",
+        status=404,
+    )

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.urls import include, path
-
+from chat.views import custom_404
 
 urlpatterns = [
     path(
@@ -13,3 +13,6 @@ urlpatterns = [
         include("chat.urls"),
     ),
 ]
+
+
+handler404 = "chat.views.custom_404"
