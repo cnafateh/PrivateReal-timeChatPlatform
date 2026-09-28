@@ -1,0 +1,8 @@
+:root, html[data-theme="light"] { --primary: #6352d8; --secondary: #493aa9; --accent: #d9d2ff; --link-fg: #6352d8; --header-color: #fff; --breadcrumbs-bg: #f0edff; --breadcrumbs-fg: #493aa9; --breadcrumbs-link-fg: #493aa9; }
+html[data-theme="dark"] { --primary: #7766e7; --secondary: #2d254b; --accent: #d9d2ff; --link-fg: #b9adff; --breadcrumbs-bg: #201c31; --breadcrumbs-fg: #e2daff; --breadcrumbs-link-fg: #c9bdff; }
+#header { padding: 20px 30px; }
+#site-name a { font-weight: 700; letter-spacing: -.7px; }
+.admin-label { font-size: 10px; letter-spacing: 2px; font-weight: 400; margin-left: 12px; }
+.module { border-radius: 10px; overflow: hidden; }
+#content h1 { font-weight: 600; }
+.submit-row { border-radius: 10px; }

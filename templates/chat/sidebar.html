@@ -1,0 +1,31 @@
+<aside class="sidebar">
+    <div class="sidebar-head">
+        <div class="brand-row">
+            <a href="{% url 'inbox' %}" class="brand"><span class="brand-mark">P</span> Pulse</a>
+            <a class="icon-button" href="{% url 'search_user' %}" aria-label="New chat" title="New chat">＋</a>
+        </div>
+        <a href="{% url 'search_user' %}" class="search-field">Search or start a conversation →</a>
+    </div>
+    <div class="section-label">Your conversations</div>
+    <nav class="conversation-list" aria-label="Conversations">
+        {% for item in chats %}
+        <a href="{% url 'private_chat' item.other_user.id %}" class="chat-row {% if chat.pk == item.chat.pk %}active{% endif %}">
+            <div class="avatar">{{ item.other_user.username|slice:':1'|upper }}</div>
+            <div class="chat-copy">
+                <div class="chat-title-line">
+                    <span class="chat-title">@{{ item.other_user.username }}</span>
+                    {% if item.last_message %}<time class="chat-time" datetime="{{ item.last_message.timestamp|date:'c' }}" title="{{ item.last_message.timestamp|date:'Y-m-d H:i' }}">{{ item.last_message.timestamp|date:'M j' }}</time>{% endif %}
+                </div>
+                <div class="chat-title-line"><span class="chat-preview">{% if item.last_message %}{{ item.last_message.preview|truncatechars:50 }}{% else %}Start a conversation{% endif %}</span>
+                    {% if item.unread_count %}<span class="badge" aria-label="{{ item.unread_count }} unread messages">{{ item.unread_count }}</span>{% endif %}
+                </div>
+            </div>
+        </a>
+        {% empty %}<div class="empty-chat"><h2>A little hello goes a long way.</h2><p>Find a friend to start your first conversation.</p></div>{% endfor %}
+    </nav>
+    <div class="sidebar-footer"><div class="profile-mini">
+        <div class="avatar small">{{ user.username|slice:':1'|upper }}</div>
+        <div class="user-copy"><strong>@{{ user.username }}</strong><span>Your personal space</span></div>
+        <form action="{% url 'logout' %}" method="post">{% csrf_token %}<button class="icon-button" title="Log out" aria-label="Log out">↗</button></form>
+    </div></div>
+</aside>

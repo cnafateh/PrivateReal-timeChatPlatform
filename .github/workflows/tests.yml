@@ -1,0 +1,79 @@
+name: Tests
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python manage.py check --settings=chatapp_project.test_settings
+      - run: python manage.py makemigrations --check --dry-run --settings=chatapp_project.test_settings
+      - run: coverage run --source=chat --omit='chat/migrations/*,chat/test*' manage.py test --settings=chatapp_project.test_settings
+      - run: coverage report --fail-under=85
+      - run: python manage.py collectstatic --noinput --settings=chatapp_project.test_settings
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check static/js/chat.js && node --check static/js/theme.js
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: pulse_test
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DB_HOST: localhost
+      TEST_REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python manage.py test --settings=chatapp_project.test_settings
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - run: pip install -r requirements-dev.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python manage.py test browser_tests --settings=chatapp_project.test_settings
+        env:
+          RUN_BROWSER_TESTS: "1"
+      - run: cp .env.example .env && docker compose config --quiet

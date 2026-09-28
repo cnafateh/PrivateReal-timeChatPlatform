@@ -38,3 +38,15 @@ docker-compose.yml
 # Other
 *.md
 .docker
+# Local secrets, test artifacts and private configuration
+.env
+.env.*
+.venv/
+.test-tmp/
+.browser-test/
+.coverage
+htmlcov/
+coverage.xml
+test-results/
+*.pem
+*.key

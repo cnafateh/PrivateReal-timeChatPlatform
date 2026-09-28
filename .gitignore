@@ -51,3 +51,9 @@ dmypy.json
 
 # Uploads
 uploads/
+# Local verification artifacts
+.test-tmp/
+.browser-test/
+coverage.xml
+playwright-report/
+test-results/

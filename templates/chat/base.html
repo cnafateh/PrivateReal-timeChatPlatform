@@ -51,6 +51,8 @@
         href="{% static 'css/app.css' %}"
     >
 
+    <script src="{% static 'js/theme.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/enhancements.css' %}">
     {% block head %}
     {% endblock %}
 
@@ -58,6 +60,7 @@
 
 <body class="{% block body_class %}{% endblock %}">
 
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch color theme" title="Switch color theme">◐</button>
     {% block content %}
     {% endblock %}
 
