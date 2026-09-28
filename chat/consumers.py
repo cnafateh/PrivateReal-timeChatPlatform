@@ -1,220 +1,68 @@
 import json
+import time
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.utils import timezone
+from django.db.models import Q
 
 from .models import Message, PrivateChat
+from .services import serialize_message
 
 
 class PrivateChatConsumer(AsyncWebsocketConsumer):
-
     async def connect(self):
-
-        self.chat_id = self.scope[
-            "url_route"
-        ]["kwargs"]["chat_id"]
-
-        self.room_group_name = (
-            f"private_chat_{self.chat_id}"
-        )
-
-        has_access = await self.check_user_access()
-
-        if not has_access:
+        self.chat_id = self.scope["url_route"]["kwargs"]["chat_id"]
+        self.room_group_name = f"private_chat_{self.chat_id}"
+        self.last_typing = 0
+        if not await self.check_user_access():
             await self.close(code=4403)
             return
-
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name,
-        )
-
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
-
     async def disconnect(self, close_code):
+        if hasattr(self, "room_group_name"):
+            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
-        if hasattr(
-            self,
-            "room_group_name",
-        ):
-
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name,
-            )
-
-
-    async def receive(
-        self,
-        text_data=None,
-        bytes_data=None,
-    ):
-
+    async def receive(self, text_data=None, bytes_data=None):
+        if not text_data or len(text_data) > 20000:
+            return
         try:
-
-            payload = json.loads(
-                text_data or "{}"
-            )
-
-        except json.JSONDecodeError:
+            payload = json.loads(text_data)
+        except (ValueError, TypeError):
             return
-
-
-        content = str(
-            payload.get(
-                "message",
-                "",
-            )
-        ).strip()
-
-
-        if not content:
+        if not isinstance(payload, dict) or not await self.check_user_access():
             return
-
-
-        if len(content) > 4000:
+        if payload.get("type") == "typing":
+            if time.monotonic() - self.last_typing < 2:
+                return
+            self.last_typing = time.monotonic()
+            await self.channel_layer.group_send(self.room_group_name, {
+                "type": "chat_event", "data": {"type": "typing", "sender_id": self.scope["user"].pk}})
             return
-
-
-        message = await self.save_message(
-            content
-        )
-
-
-        if not message:
+        content = payload.get("message")
+        if not isinstance(content, str) or not 0 < len(content.strip()) <= 4000:
             return
+        message = await self.save_message(content.strip())
+        if message:
+            await self.channel_layer.group_send(self.room_group_name, {
+                "type": "chat_event", "data": {"type": "message", **message}})
 
-
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {
-                "type": "chat_message",
-
-                "message":
-                message["content"],
-
-                "sender":
-                message["sender"],
-
-                "timestamp":
-                message["timestamp"],
-            },
-        )
-
-
-    async def chat_message(
-        self,
-        event,
-    ):
-
-        await self.send(
-            text_data=json.dumps(
-                {
-                    "message":
-                    event["message"],
-
-                    "sender":
-                    event["sender"],
-
-                    "timestamp":
-                    event["timestamp"],
-                }
-            )
-        )
-
+    async def chat_event(self, event):
+        await self.send(text_data=json.dumps(event["data"]))
 
     @database_sync_to_async
     def check_user_access(self):
-
         user = self.scope["user"]
-
-
-        if not user.is_authenticated:
-            return False
-
-
-        return (
-            PrivateChat.objects
-            .filter(id=self.chat_id)
-            .filter(
-                user1=user
-            )
-            .exists()
-
-            or
-
-            PrivateChat.objects
-            .filter(id=self.chat_id)
-            .filter(
-                user2=user
-            )
-            .exists()
-        )
-
+        return user.is_authenticated and user.is_active and PrivateChat.objects.filter(
+            Q(user1_id=user.pk) | Q(user2_id=user.pk), pk=self.chat_id).exists()
 
     @database_sync_to_async
-    def save_message(
-        self,
-        content,
-    ):
-
+    def save_message(self, content):
         user = self.scope["user"]
-
-
-        chat = (
-            PrivateChat.objects
-            .filter(
-                id=self.chat_id
-            )
-            .select_related(
-                "user1",
-                "user2",
-            )
-            .first()
-        )
-
-
+        chat = PrivateChat.objects.select_related("user1", "user2").filter(
+            Q(user1_id=user.pk) | Q(user2_id=user.pk), pk=self.chat_id).first()
         if not chat:
             return None
-
-
-        if user not in (
-            chat.user1,
-            chat.user2,
-        ):
-            return None
-
-
-        receiver = (
-            chat.user2
-            if chat.user1 == user
-            else chat.user1
-        )
-
-
-        message = Message.objects.create(
-            chat=chat,
-            sender=user,
-            receiver=receiver,
-            content=content,
-            is_read=False,
-        )
-
-
-        local_time = timezone.localtime(
-            message.timestamp
-        )
-
-
-        return {
-            "content":
-            message.content,
-
-            "sender":
-            user.username,
-
-            "timestamp":
-            local_time.strftime("%H:%M"),
-        }
+        return serialize_message(Message.objects.create(chat=chat, sender=user,
+                                 receiver=chat.get_other_user(user), content=content))

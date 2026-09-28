@@ -27,7 +27,7 @@ COPY . .
 
 
 RUN chmod +x /app/entrypoint.sh \
-    && mkdir -p /app/staticfiles \
+    && mkdir -p /app/staticfiles /app/media \
     && chown -R app:app /app
 
 

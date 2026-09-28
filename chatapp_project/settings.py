@@ -87,6 +87,8 @@ MIDDLEWARE = [
 
     "django.middleware.common.CommonMiddleware",
 
+    "chat.uploads.UploadLimitMiddleware",
+
     "django.middleware.csrf.CsrfViewMiddleware",
 
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -289,7 +291,7 @@ if REDIS_URL:
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
                 "hosts": [
-                    (REDIS_HOST, REDIS_PORT),
+                    REDIS_URL,
                 ],
             },
         },
@@ -370,3 +372,8 @@ SECURE_HSTS_PRELOAD = env_bool(
 X_FRAME_OPTIONS = "DENY"
 
 SECURE_CONTENT_TYPE_NOSNIFF = True
+# Attachments are served only by the authenticated download view.
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/private-media/"
+FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 6 * 1024 * 1024

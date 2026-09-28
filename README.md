@@ -1,383 +1,98 @@
-# 💬 Pulse — Real-Time Messaging Platform
+# Pulse
 
-**Pulse** is a modern real-time private messaging application built with Django, Django Channels, WebSockets, Redis, and PostgreSQL.
+A self-hosted, real-time private messenger built with Django and Channels.
 
-Users can discover each other by username, start private conversations, and exchange messages instantly without refreshing the page.
+[![Tests and build](https://github.com/cnafateh/PrivateReal-timeChatPlatform/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/cnafateh/PrivateReal-timeChatPlatform/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-The project is fully containerized and deployed in production with Docker, Daphne, PostgreSQL, Redis, HTTPS/WSS, and Nginx Proxy Manager.
+## Features
 
-🌐 **Live Demo:** https://chat.sinafateh.ir
+- One-to-one conversations with real-time updates and unread counts.
+- Telegram-style day separators: Today, Yesterday, and full dates. Times follow the reader's device timezone; hover a time to see its complete date.
+- Photos, documents and other files, up to **5 MiB (5,242,880 bytes)** each, with optional captions.
+- Record, preview, remove and send voice messages. Recording stops at five minutes or near the upload limit.
+- Persistent light/dark theme, with the operating-system preference as the default.
+- Read receipts, typing indicators, earlier-message pagination and automatic reconnection.
+- Recovery of missed messages through periodic history synchronization; repeat requests do not duplicate messages.
+- Per-conversation text drafts in the current browser tab, multiline text, bidirectional message text and responsive layouts.
+- Branded administration with message filters, search, conversation counts and read-only message details.
 
----
+## Run locally
 
-## ✨ Features
+Requires Python **3.12+**. SQLite and a single-process channel layer are used when database and Redis addresses are absent.
 
-- 🔐 **User Authentication** — Registration, login, logout, and session-based authentication
-- 🔍 **User Discovery** — Search for users by their unique username
-- 💬 **Private Conversations** — Start one-to-one conversations between registered users
-- ⚡ **Real-Time Messaging** — Instant message delivery using WebSockets and Django Channels
-- 🗄️ **Persistent Message History** — Conversations and messages stored in PostgreSQL
-- 🔴 **Redis Channel Layer** — Redis-backed communication for Django Channels
-- 📱 **Responsive Interface** — Modern UI designed for desktop and mobile devices
-- 🌙 **Modern Dark UI** — Custom messaging interface built with HTML, CSS, and Vanilla JavaScript
-- 🎮 **Interactive 404 Page** — Custom error page with a small interactive mini-game
-- 🐳 **Dockerized Deployment** — Application and Redis services managed with Docker Compose
-- 🔒 **Production HTTPS/WSS** — Secure HTTP and WebSocket connections behind a reverse proxy
-- ⚙️ **Automated Docker Builds** — GitHub Actions automatically builds and publishes production images to GitHub Container Registry
-
----
-
-## 🛠 Tech Stack
-
-| Category | Technology |
-| --- | --- |
-| **Backend** | Python, Django |
-| **Real-Time** | Django Channels, WebSocket |
-| **ASGI Server** | Daphne |
-| **Database** | PostgreSQL |
-| **Channel Layer** | Redis |
-| **Frontend** | HTML5, CSS3, Vanilla JavaScript |
-| **Containerization** | Docker, Docker Compose |
-| **Reverse Proxy** | Nginx Proxy Manager |
-| **CI** | GitHub Actions |
-| **Container Registry** | GitHub Container Registry (GHCR) |
-| **Production Protocols** | HTTPS, WSS |
-| **Version Control** | Git, GitHub |
-
----
-
-## 🏗 Architecture
-
-Pulse uses Django's ASGI architecture to support both regular HTTP requests and persistent WebSocket connections.
-
-```text
-                         Internet
-                            │
-                       HTTPS / WSS
-                            │
-                            ▼
-                  Nginx Proxy Manager
-                            │
-                            ▼
-                    Django + Daphne
-                       /         \
-                      /           \
-                     ▼             ▼
-               PostgreSQL        Redis
-                Messages       Channel Layer
-                Users
-                Conversations
-```
-
-### Request Flow
-
-Regular application requests:
-
-```text
-Browser
-   │
- HTTPS
-   ▼
-Reverse Proxy
-   │
-   ▼
-Daphne
-   │
-   ▼
-Django
-   │
-   ▼
-PostgreSQL
-```
-
-Real-time messages:
-
-```text
-Browser
-   │
-   WSS
-   ▼
-Reverse Proxy
-   │
-   ▼
-Daphne
-   │
-   ▼
-Django Channels
-   │
-   ▼
-Redis Channel Layer
-```
-
-This allows Pulse to handle traditional Django requests and real-time WebSocket connections within the same application.
-
----
-
-## 🐳 Docker Architecture
-
-The production application runs as separate Docker services:
-
-```text
-┌─────────────────────────────┐
-│        Reverse Proxy        │
-│    Nginx Proxy Manager      │
-└──────────────┬──────────────┘
-               │
-               ▼
-┌─────────────────────────────┐
-│            Pulse            │
-│      Django + Daphne        │
-│          Port 8000          │
-└──────────┬──────────┬───────┘
-           │          │
-           ▼          ▼
-     PostgreSQL     Redis
-      Database    Channel Layer
-```
-
-PostgreSQL and the application communicate through a private Docker network, while Redis is isolated inside the application's internal network.
-
----
-
-## 🚀 Local Development
-
-### Prerequisites
-
-Make sure you have installed:
-
-- Python
-- Git
-- Docker and Docker Compose (recommended)
-
-Clone the repository:
-
-```bash
+```sh
 git clone https://github.com/cnafateh/PrivateReal-timeChatPlatform.git
 cd PrivateReal-timeChatPlatform
-```
-
----
-
-## ⚙️ Environment Variables
-
-Create a `.env` file in the project root.
-
-Example:
-
-```env
-DEBUG=True
-
-DJANGO_SECRET_KEY=your-development-secret-key
-
-ALLOWED_HOSTS=localhost,127.0.0.1
-CSRF_TRUSTED_ORIGINS=http://localhost:8000
-
-TIME_ZONE=Asia/Tehran
-
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=chatapp_db
-DB_USER=chatapp_user
-DB_PASSWORD=your-database-password
-
-REDIS_HOST=localhost
-REDIS_PORT=6379
-```
-
-> Never commit production secrets or your real `.env` file to the repository.
-
----
-
-## 💻 Running Locally
-
-Create a virtual environment:
-
-```bash
-python -m venv venv
-```
-
-Activate it.
-
-### Linux / macOS
-
-```bash
-source venv/bin/activate
-```
-
-### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-Install dependencies:
-
-```bash
+python -m venv .venv
+# macOS / Linux:
+source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-```
-
-Apply database migrations:
-
-```bash
+cp .env.example .env
+# PowerShell: Copy-Item .env.example .env
 python manage.py migrate
-```
-
-Optionally create an administrator:
-
-```bash
 python manage.py createsuperuser
+python manage.py runserver
 ```
 
-Start the ASGI server:
+Open <http://localhost:8000>. Register a second account in another browser profile, search for its username and start a conversation. The administration panel is at `/admin/`.
 
-```bash
-daphne -b 0.0.0.0 -p 8000 chatapp_project.asgi:application
+Local `.env` files are ignored by Git and Docker. Set your own `DJANGO_SECRET_KEY`. Never reuse the example credentials on a public deployment.
+
+## Docker
+
+```sh
+cp .env.example .env
+# Set DJANGO_SECRET_KEY and DB_PASSWORD in .env.
+docker compose up --build -d
+docker compose exec web python manage.py createsuperuser
 ```
 
-Then open:
+Open <http://localhost:8080>. Compose starts Django/Daphne, PostgreSQL, Redis and Nginx, with persistent volumes for database records and uploaded files. Nginx accepts request bodies up to 6 MiB to leave room for multipart framing; each attachment is limited to 5 MiB by the application.
 
-```text
-http://127.0.0.1:8000
+For public hosting and upgrades, follow [deployment instructions](docs/DEPLOYMENT.md). The provided Compose file binds to localhost; configure your trusted HTTPS proxy before exposing the service.
+
+## Tests
+
+```sh
+pip install -r requirements-dev.txt
+python manage.py test --settings=chatapp_project.test_settings
+coverage run --source=chat --omit='chat/migrations/*,chat/test*' manage.py test --settings=chatapp_project.test_settings
+coverage report
 ```
 
-> PostgreSQL and Redis must be available and configured through the environment variables when using the production-style configuration.
+Browser tests are opt-in:
 
----
-
-## 📦 Production Deployment
-
-The production version is distributed as a Docker image through GitHub Container Registry:
-
-```text
-ghcr.io/cnafateh/chatapp:latest
+```sh
+python -m playwright install chromium
+RUN_BROWSER_TESTS=1 python manage.py test browser_tests --settings=chatapp_project.test_settings
+# PowerShell: $env:RUN_BROWSER_TESTS='1'; python manage.py test browser_tests --settings=chatapp_project.test_settings
 ```
 
-The application can be pulled with:
+GitHub Actions runs server tests on Python 3.12 and 3.13, PostgreSQL/Redis integration tests, Chromium interface tests, migration checks, JavaScript syntax checks and static asset collection. The Docker publishing job waits for all test jobs to pass.
 
-```bash
-docker pull ghcr.io/cnafateh/chatapp:latest
-```
+Tests use a separate database and temporary uploads. They do not modify your development conversations. See [testing details](docs/TESTING.md).
 
-The production stack uses:
+## Privacy and limitations
 
-- Django
-- Daphne
-- PostgreSQL
-- Redis
-- Docker
-- Nginx Proxy Manager
-- HTTPS/WSS
+Only conversation members can retrieve attachments. Media files are never published as public static files. General files download as binary attachments; validated raster images and supported audio containers can be viewed inline.
 
-Sensitive configuration such as database credentials and Django secrets is provided through environment variables and is not stored in the repository.
+Messages and files are stored on your server. **This is not end-to-end encryption**: authorized server operators can access stored content. File downloads are not malware-scanned. Audio container detection does not validate every codec or guarantee playback in every browser. Mobile Safari and Chromium may select different recording formats.
 
----
+Voice recording needs microphone permission and HTTPS, except on localhost. File selection remains available if recording is unsupported. There are no push notifications while the page is closed.
 
-## ⚡ CI Pipeline
+## Documentation
 
-Every push to the `main` branch triggers GitHub Actions.
+- [Deployment, configuration and upgrades](docs/DEPLOYMENT.md)
+- [Architecture and HTTP/WebSocket protocol](docs/ARCHITECTURE.md)
+- [Tests and manual verification](docs/TESTING.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security reporting](SECURITY.md)
+- [Release notes](CHANGELOG.md)
 
-The workflow:
+## Contributing and license
 
-```text
-Push to main
-      │
-      ▼
-GitHub Actions
-      │
-      ├── Checkout source
-      │
-      ├── Build Docker image
-      │
-      └── Publish image
-              │
-              ▼
-     GitHub Container Registry
-              │
-              ▼
-     ghcr.io/cnafateh/chatapp
-```
+Bug reports and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change.
 
-This keeps the production Docker image synchronized with the latest version of the main branch.
-
----
-
-## 🔐 Security
-
-Pulse uses several production-oriented security practices:
-
-- Django session-based authentication
-- Private user-to-user conversations
-- Environment-based secret management
-- HTTPS for standard requests
-- WSS for encrypted WebSocket connections
-- PostgreSQL credentials stored outside the source code
-- Redis isolated inside the Docker network
-- Production mode with `DEBUG=False`
-- Django trusted-host and CSRF configuration
-
----
-
-## 📂 Project Structure
-
-```text
-PrivateReal-timeChatPlatform/
-│
-├── chat/
-│   ├── migrations/
-│   ├── consumers.py
-│   ├── models.py
-│   ├── routing.py
-│   ├── urls.py
-│   └── views.py
-│
-├── chatapp_project/
-│   ├── asgi.py
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-│
-├── static/
-│   ├── css/
-│   ├── images/
-│   └── js/
-│
-├── templates/
-│   ├── chat/
-│   └── 404.html
-│
-├── .github/
-│   └── workflows/
-│
-├── Dockerfile
-├── docker-compose.yml
-├── entrypoint.sh
-├── manage.py
-├── requirements.txt
-└── README.md
-```
-
----
-
-## 🌐 Live Application
-
-Pulse is currently deployed and available at:
-
-**https://chat.sinafateh.ir**
-
-The production environment runs behind HTTPS and uses secure WebSocket (`wss://`) connections for real-time messaging.
-
----
-
-## 👨‍💻 Author
-
-**Sina Fateh**
-
-Backend / Python Developer
-
-GitHub: https://github.com/cnafateh
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+Released under the [MIT License](LICENSE).

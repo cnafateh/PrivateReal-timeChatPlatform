@@ -1,0 +1,77 @@
+[hidden] { display: none !important; }
+:root { --incoming: #161d2c; --outgoing: #6554dc; }
+:root[data-theme="light"] {
+    color-scheme: light; --background: #f3f5fa; --panel: #fff; --panel-soft: #f7f8fc;
+    --panel-hover: #edf0f8; --border: #e3e7f0; --border-strong: #d3d9e6;
+    --text: #20283d; --text-secondary: #59657c; --text-muted: #65718b;
+    --primary: #6352d8; --primary-hover: #5242c2; --primary-soft: #eeebff;
+    --incoming: #eef1f8; --outgoing: #6352d8; --shadow: 0 24px 80px #25345914;
+}
+.theme-toggle { position: fixed; top: 12px; right: 16px; z-index: 20; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--panel); color: var(--text); cursor: pointer; font-size: 22px; }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
+button { font-family: inherit; cursor: pointer; }
+button:disabled { cursor: wait; opacity: .55; }
+.sidebar, .topbar, .composer-area, .sidebar-footer { background: var(--panel); }
+.main-panel { position: relative; background: var(--panel-soft); }
+.messages { background-image: radial-gradient(var(--border-strong) .7px, transparent .7px); background-size: 22px 22px; }
+.message-row .message-bubble { background: var(--incoming); color: var(--text); max-width: min(78%, 520px); box-shadow: 0 2px 3px #00000005; }
+.message-row.own .message-bubble { background: var(--outgoing); color: #fff; }
+.message-row.own .message-meta { color: #eeeaff; }
+.message-text { white-space: pre-wrap; overflow-wrap: anywhere; text-align: start; }
+.message-text:empty { display: none; }
+.message-meta { gap: 7px; }
+.message-meta time { cursor: help; }
+.message-status.read { color: #91f6ed; }
+.date-divider { text-align: center; margin: 20px 0; position: sticky; top: 8px; z-index: 1; pointer-events: none; }
+.date-divider span { display: inline-block; padding: 6px 13px; border: 1px solid var(--border); border-radius: 20px; background: var(--panel); color: var(--text-secondary); font-size: 11px; box-shadow: 0 3px 10px #00000009; }
+.history-tools { text-align: center; flex-shrink: 0; }
+.quiet-button { border: 0; background: transparent; color: var(--primary); padding: 9px 12px; font-size: 12px; }
+.composer textarea { flex: 1; min-width: 0; max-height: 140px; resize: none; border: 0; outline: 0; padding: 10px 4px; font: inherit; font-size: 14px; line-height: 1.5; color: var(--text); background: transparent; }
+.composer { background: var(--panel-soft); gap: 6px; }
+.composer .icon-button { flex-shrink: 0; font-size: 24px; }
+.composer .icon-button svg { width: 20px; height: 20px; }
+.send-button { flex-shrink: 0; color: #fff; font-size: 24px; }
+.composer-hint { display: flex; justify-content: space-between; gap: 12px; padding: 8px 5px 0; color: var(--text-muted); font-size: 10px; }
+.typing-status { min-height: 20px; margin: 0; padding: 2px 24px; color: var(--text-secondary); font-size: 11px; }
+.chat-error { margin: 0 0 10px; padding: 10px 12px; border-radius: 10px; background: #b42b3618; color: var(--danger); font-size: 13px; }
+.attachment-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 12px; margin-bottom: 8px; border-radius: 12px; background: var(--primary-soft); font-size: 12px; }
+#attachment-name { flex: 1; overflow-wrap: anywhere; }
+.message-photo { display: block; max-width: 100%; max-height: 340px; border-radius: 10px; object-fit: contain; }
+.message-bubble audio, #voice-preview { display: block; width: min(280px, 100%); max-width: 100%; height: 40px; margin: 5px 0; }
+.file-link { display: flex; gap: 12px; align-items: center; padding: 10px 0; font-size: 13px; overflow-wrap: anywhere; text-decoration: underline; }
+.file-link small { white-space: nowrap; opacity: .8; }
+.jump-latest { position: absolute; bottom: 155px; align-self: center; padding: 10px 16px; border: 1px solid var(--border); border-radius: 20px; background: var(--panel); color: var(--text); box-shadow: var(--shadow); }
+.conversation-label { font-size: 9px; color: var(--text-muted); letter-spacing: 1.5px; }
+.feature-pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 30px; }
+.feature-pills span { padding: 7px 11px; border: 1px solid var(--border); border-radius: 20px; color: var(--text-secondary); font-size: 10px; }
+.eyebrow { font-size: 10px !important; letter-spacing: 2px; color: var(--primary) !important; }
+.empty-chat h1 { font-size: clamp(28px, 4vw, 44px); letter-spacing: -1.6px; line-height: 1.15; margin: 15px 0; }
+.empty-chat .compact-button { display: inline-flex; align-items: center; margin-top: 24px; width: auto; }
+.welcome-orb { font-size: 36px; font-weight: 700; }
+.profile-mini form { margin: 0; }
+.icon-button { color: var(--text-secondary); }
+.start-chat { color: var(--primary); }
+#voice-button.recording { color: var(--danger); background: #ff657d20; }
+@media (max-width: 700px) {
+    .theme-toggle { top: 16px; right: 14px; width: 32px; height: 32px; }
+    .top-actions { padding-right: 35px; }
+    .conversation-label { display: none; }
+    .inbox-page .brand-row { padding-right: 42px; }
+    .auth-form-side { padding-top: 65px; }
+    .composer-hint { font-size: 9px; }
+    .composer textarea { font-size: 16px; }
+    .message-row .message-bubble { max-width: 86%; }
+    .date-divider { margin: 14px 0; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+.message-row.other .message-bubble { background: var(--incoming); color: var(--text); }
+.sidebar .search-field { background: var(--panel-soft); border-color: var(--border); font-size: 12px; color: var(--text-secondary); }
+.chat-row.active { background: var(--primary-soft); border-color: var(--border); }
+.icon-button { border-color: var(--border); background: var(--panel-soft); }
+.brand-mark { color: white; }
+#connection-status { color: var(--text-secondary); }
+.top-actions { padding-right: 35px; }
+.messages { scroll-behavior: auto; }
+
+.composer textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
