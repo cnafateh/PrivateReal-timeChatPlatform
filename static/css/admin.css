@@ -12,3 +12,4 @@ html[data-theme="dark"] { --primary: #7766e7; --secondary: #2d254b; --accent: #d
 .participant-filter input[type="text"] { box-sizing: border-box; width: 100%; margin-bottom: 10px; }
 .participant-filter button { border: 0; border-radius: 4px; background: var(--primary); color: white; padding: 6px 10px; }
 .admin-attachment-image { max-width: min(480px, 100%); max-height: 360px; margin-top: 12px; border-radius: 8px; }
+.admin-profile-image { display: block; width: 112px; height: 112px; object-fit: cover; border-radius: 50%; }
