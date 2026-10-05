@@ -1,10 +1,16 @@
+from django import forms
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import User
 from django.db.models import Count, Q
+from django.db import transaction
 from django.core.exceptions import PermissionDenied
+from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404
 from django.urls import path, reverse
 from django.utils.html import format_html
 
+from .forms import clean_avatar_upload
 from .models import Message, PrivateChat, Profile
 from .views import attachment_response
 
@@ -12,6 +18,49 @@ admin.site.site_header = "Pulse administration"
 admin.site.site_title = "Pulse Admin"
 admin.site.index_title = "Administration"
 admin.site.site_url = "/"
+
+
+class ProfileAdminForm(forms.ModelForm):
+    new_avatar = forms.FileField(
+        required=False,
+        label="New profile photo",
+        help_text="PNG, JPEG, WebP or GIF, up to 5 MB.",
+        widget=forms.FileInput(attrs={"accept": "image/png,image/jpeg,image/webp,image/gif"}),
+    )
+    remove_avatar = forms.BooleanField(required=False, label="Remove uploaded photo")
+
+    class Meta:
+        model = Profile
+        fields = ("phone", "show_phone", "use_gravatar")
+
+    def clean_new_avatar(self):
+        return clean_avatar_upload(self.cleaned_data["new_avatar"])
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("new_avatar") and cleaned.get("remove_avatar"):
+            self.add_error("remove_avatar", "Choose either a new photo or removal, not both.")
+        return cleaned
+
+
+admin.site.unregister(User)
+
+
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    list_display = (*BaseUserAdmin.list_display, "chat_profile")
+    fieldsets = (*BaseUserAdmin.fieldsets, ("Chat profile", {"fields": ("chat_profile",)}))
+    readonly_fields = (*BaseUserAdmin.readonly_fields, "chat_profile")
+
+    @admin.display(description="Chat profile")
+    def chat_profile(self, obj):
+        if not obj.pk:
+            return "Save the user first to edit the profile photo."
+        profile = Profile.objects.filter(user=obj).first()
+        if not profile:
+            return "No profile found."
+        url = reverse("admin:chat_profile_change", args=[profile.pk])
+        return format_html('<a href="{}">Edit photo and profile settings</a>', url)
 
 
 class ParticipantFilter(admin.SimpleListFilter):
@@ -140,12 +189,66 @@ class MessageAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
+    form = ProfileAdminForm
     list_display = ["user", "display_name", "phone", "show_phone", "use_gravatar"]
     list_filter = ["show_phone", "use_gravatar", "user__is_active"]
     search_fields = ["user__username", "user__first_name", "user__last_name", "user__email", "phone"]
-    readonly_fields = ["user", "public_id", "display_name"]
-    fields = ["user", "public_id", "display_name", "phone", "show_phone", "use_gravatar"]
+    readonly_fields = ["user", "public_id", "display_name", "account_links", "avatar_preview"]
+    fields = ["user", "public_id", "display_name", "account_links", "avatar_preview",
+              "new_avatar", "remove_avatar", "phone", "show_phone", "use_gravatar"]
     list_select_related = ["user"]
+
+    @admin.display(description="User account")
+    def account_links(self, obj):
+        change_url = reverse("admin:auth_user_change", args=[obj.user_id])
+        delete_url = reverse("admin:auth_user_delete", args=[obj.user_id])
+        return format_html('<a href="{}">Edit name, email and account</a> · '
+                           '<a href="{}">Delete user and profile</a>', change_url, delete_url)
+
+    @admin.display(description="Current photo")
+    def avatar_preview(self, obj):
+        if not obj.avatar:
+            return "No uploaded photo. Gravatar is used when enabled and available."
+        url = reverse("admin:chat_profile_avatar", args=[obj.public_id])
+        return format_html('<img src="{}" alt="Profile photo" class="admin-profile-image">', url)
+
+    def get_urls(self):
+        return [path("<uuid:public_id>/avatar/", self.admin_site.admin_view(self.admin_avatar),
+                     name="chat_profile_avatar")] + super().get_urls()
+
+    def admin_avatar(self, request, public_id):
+        profile = get_object_or_404(self.get_queryset(request), public_id=public_id)
+        if not self.has_view_or_change_permission(request, profile):
+            raise PermissionDenied
+        if not profile.avatar:
+            raise Http404
+        try:
+            stream = profile.avatar.open("rb")
+        except FileNotFoundError:
+            raise Http404
+        response = FileResponse(stream, content_type="image/png")
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    def save_model(self, request, obj, form, change):
+        previous = Profile.objects.filter(pk=obj.pk).values_list("avatar", flat=True).first() or ""
+        replacement = form.cleaned_data["new_avatar"]
+        new_name = None
+        try:
+            if replacement:
+                obj.avatar.save("avatar.png", replacement, save=False)
+                new_name = obj.avatar.name
+            elif form.cleaned_data["remove_avatar"]:
+                obj.avatar = ""
+            super().save_model(request, obj, form, change)
+        except Exception:
+            if new_name:
+                obj.avatar.storage.delete(new_name)
+            raise
+        if previous and previous != obj.avatar.name:
+            storage = obj.avatar.storage
+            transaction.on_commit(lambda: storage.delete(previous))
 
     def has_add_permission(self, request):
         return False

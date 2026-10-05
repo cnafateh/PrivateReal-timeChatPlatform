@@ -3,6 +3,34 @@ from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
 
+def clean_avatar_upload(upload):
+    import io
+    import warnings
+    from django.core.files.base import ContentFile
+    from PIL import Image, ImageOps, UnidentifiedImageError
+    from .services import MAX_FILE_SIZE
+
+    if not upload:
+        return None
+    if not 0 < upload.size <= MAX_FILE_SIZE:
+        raise forms.ValidationError("Photos must be non-empty and no larger than 5 MB.")
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(upload) as image:
+                if image.format not in {"PNG", "JPEG", "GIF", "WEBP"} or image.width * image.height > 20_000_000:
+                    raise ValueError
+                image = ImageOps.exif_transpose(image)
+                image.thumbnail((512, 512))
+                clean = Image.new("RGBA", image.size)
+                clean.paste(image.convert("RGBA"))
+                output = io.BytesIO()
+                clean.save(output, "PNG")
+        return ContentFile(output.getvalue(), name="avatar.png")
+    except (OSError, ValueError, UnidentifiedImageError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+        raise forms.ValidationError("Choose a valid PNG, JPEG, WebP or GIF photo up to 20 megapixels.")
+
+
 class RegisterForm(UserCreationForm):
     email = forms.EmailField(required=False, help_text="Optional. Used for your Gravatar avatar; not shown on your profile.")
 
@@ -92,32 +120,7 @@ class ProfileForm(forms.Form):
         return value
 
     def clean_avatar(self):
-        import io
-        import warnings
-        from django.core.files.base import ContentFile
-        from PIL import Image, ImageOps, UnidentifiedImageError
-        from .services import MAX_FILE_SIZE
-
-        upload = self.cleaned_data["avatar"]
-        if not upload:
-            return None
-        if not 0 < upload.size <= MAX_FILE_SIZE:
-            raise forms.ValidationError("Photos must be non-empty and no larger than 5 MB.")
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("error", Image.DecompressionBombWarning)
-                with Image.open(upload) as image:
-                    if image.format not in {"PNG", "JPEG", "GIF", "WEBP"} or image.width * image.height > 20_000_000:
-                        raise ValueError
-                    image = ImageOps.exif_transpose(image)
-                    image.thumbnail((512, 512))
-                    clean = Image.new("RGBA", image.size)
-                    clean.paste(image.convert("RGBA"))
-                    output = io.BytesIO()
-                    clean.save(output, "PNG")
-            return ContentFile(output.getvalue(), name="avatar.png")
-        except (OSError, ValueError, UnidentifiedImageError, Image.DecompressionBombError, Image.DecompressionBombWarning):
-            raise forms.ValidationError("Choose a valid PNG, JPEG, WebP or GIF photo up to 20 megapixels.")
+        return clean_avatar_upload(self.cleaned_data["avatar"])
 
     def clean(self):
         cleaned = super().clean()
