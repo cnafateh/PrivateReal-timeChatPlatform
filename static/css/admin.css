@@ -6,3 +6,9 @@ html[data-theme="dark"] { --primary: #7766e7; --secondary: #2d254b; --accent: #d
 .module { border-radius: 10px; overflow: hidden; }
 #content h1 { font-weight: 600; }
 .submit-row { border-radius: 10px; }
+
+.participant-filter { padding: 8px 15px 16px; }
+.participant-filter label { display: block; font-size: 12px; margin-bottom: 6px; }
+.participant-filter input[type="text"] { box-sizing: border-box; width: 100%; margin-bottom: 10px; }
+.participant-filter button { border: 0; border-radius: 4px; background: var(--primary); color: white; padding: 6px 10px; }
+.admin-attachment-image { max-width: min(480px, 100%); max-height: 360px; margin-top: 12px; border-radius: 8px; }
