@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Profiles, access URLs and administration
+
+- Replace numeric public routes with random UUIDv4 identifiers for profiles, chats and attachments, including WebSocket endpoints.
+- Backfill unique identifiers and profiles while preserving existing messages and file paths.
+- Add editable first/last names, private email/phone, optional phone visibility and profile pages.
+- Add sanitized uploaded avatars with optional SHA-256 Gravatar fallback.
+- Add permission-checked administrator file downloads, photo/audio previews and combined participant filters.
+- Remove promotional page copy and simplify authentication and empty states.
+- Document media persistence, optional host-directory migration, application usage and the roadmap.
+
+## Messaging upgrade
+
 ### Added
 
 - Day separators and full timestamp tooltips, with local timezone formatting.
