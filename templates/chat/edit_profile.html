@@ -1,0 +1,24 @@
+{% extends 'chat/base.html' %}
+{% block title %}Edit profile | Pulse{% endblock %}
+{% block content %}
+<div class="app-shell profile-page">
+    {% include 'chat/sidebar.html' %}
+    <main class="main-panel">
+        <header class="topbar"><div class="conversation-meta"><a href="{% url 'profile_detail' profile.public_id %}" class="icon-button" aria-label="Back to profile">←</a><h1>Edit profile</h1></div></header>
+        <section class="profile-card profile-editor">
+            {% include 'chat/avatar.html' with person=user size='large' %}
+            <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}<div class="alert error">{{ form.non_field_errors }}</div>{% endif %}
+                {% for field in form %}<div class="auth-field {% if field.field.widget.input_type == 'checkbox' %}checkbox-field{% endif %}">
+                    {% if field.field.widget.input_type == 'checkbox' %}{{ field }}<label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {% else %}<label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% endif %}
+                    {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+                    {% for error in field.errors %}<p class="field-error" role="alert">{{ error }}</p>{% endfor %}
+                </div>{% endfor %}
+                <button class="primary-button" type="submit">Save changes</button>
+            </form>
+        </section>
+    </main>
+</div>
+{% endblock %}

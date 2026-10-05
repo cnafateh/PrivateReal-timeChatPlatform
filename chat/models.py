@@ -1,8 +1,10 @@
+import hashlib
 import uuid
 
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import F, Q
+from django.urls import reverse
 
 
 def attachment_path(instance, filename):
@@ -10,6 +12,7 @@ def attachment_path(instance, filename):
 
 
 class PrivateChat(models.Model):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     user1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_user1")
     user2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name="chat_user2")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -41,6 +44,7 @@ class Message(models.Model):
         FILE = "file", "File"
         VOICE = "voice", "Voice message"
 
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     chat = models.ForeignKey(PrivateChat, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
     receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_messages")
@@ -66,3 +70,32 @@ class Message(models.Model):
 
     def __str__(self):
         return f"{self.sender.username} → {self.receiver.username}: {self.preview[:60]}"
+
+
+def avatar_path(instance, filename):
+    return f"avatars/{instance.public_id}/{uuid.uuid4().hex}.png"
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    avatar = models.FileField(upload_to=avatar_path, blank=True)
+    phone = models.CharField(max_length=16, blank=True)
+    show_phone = models.BooleanField(default=False)
+    use_gravatar = models.BooleanField(default=True)
+
+    @property
+    def display_name(self):
+        return self.user.get_full_name().strip() or self.user.username
+
+    @property
+    def avatar_url(self):
+        if self.avatar:
+            return reverse("profile_avatar", args=[self.public_id])
+        if self.use_gravatar and self.user.email.strip():
+            digest = hashlib.sha256(self.user.email.strip().lower().encode("utf-8")).hexdigest()
+            return f"https://gravatar.com/avatar/{digest}?s=160&d=404&r=g"
+        return ""
+
+    def __str__(self):
+        return self.user.username

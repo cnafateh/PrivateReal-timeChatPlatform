@@ -8,14 +8,14 @@
         <header class="topbar">
             <div class="conversation-meta">
                 <a href="{% url 'inbox' %}" class="icon-button mobile-back" aria-label="Back to conversations">←</a>
-                <div class="avatar small">{{ other_user.username|slice:':1'|upper }}</div>
-                <div class="conversation-user"><h1>@{{ other_user.username }}</h1><p id="connection-status" role="status">Connecting…</p></div>
+                <a href="{% url 'profile_detail' other_user.profile.public_id %}" aria-label="View profile">{% include "chat/avatar.html" with person=other_user size="small" %}</a>
+                <div class="conversation-user"><h1><a href="{% url 'profile_detail' other_user.profile.public_id %}">{{ other_user.profile.display_name }}</a></h1><p id="connection-status" role="status">Connecting…</p></div>
             </div>
-            <div class="top-actions"><span class="conversation-label">DIRECT MESSAGE</span></div>
+
         </header>
         <div class="history-tools"><button id="load-older" type="button" class="quiet-button" hidden>Load earlier messages</button></div>
         <section id="chat-messages" class="messages" aria-label="Message history" tabindex="0">
-            <div id="empty-chat" class="empty-chat"><h2>Say hello.</h2><p>Send your first message to @{{ other_user.username }}.</p></div>
+            <div id="empty-chat" class="empty-chat"><h2>No messages</h2><p>Send your first message to @{{ other_user.username }}.</p></div>
         </section>
         <button id="jump-latest" class="jump-latest" type="button" hidden>New messages ↓</button>
         <p id="typing-status" class="typing-status" role="status"></p>

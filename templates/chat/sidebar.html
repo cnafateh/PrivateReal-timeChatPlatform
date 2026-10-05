@@ -9,11 +9,11 @@
     <div class="section-label">Your conversations</div>
     <nav class="conversation-list" aria-label="Conversations">
         {% for item in chats %}
-        <a href="{% url 'private_chat' item.other_user.id %}" class="chat-row {% if chat.pk == item.chat.pk %}active{% endif %}">
-            <div class="avatar">{{ item.other_user.username|slice:':1'|upper }}</div>
+        <a href="{% url 'private_chat' item.other_user.profile.public_id %}" class="chat-row {% if chat.pk == item.chat.pk %}active{% endif %}">
+            {% include "chat/avatar.html" with person=item.other_user %}
             <div class="chat-copy">
                 <div class="chat-title-line">
-                    <span class="chat-title">@{{ item.other_user.username }}</span>
+                    <span class="chat-title">{{ item.other_user.profile.display_name }}</span>
                     {% if item.last_message %}<time class="chat-time" datetime="{{ item.last_message.timestamp|date:'c' }}" title="{{ item.last_message.timestamp|date:'Y-m-d H:i' }}">{{ item.last_message.timestamp|date:'M j' }}</time>{% endif %}
                 </div>
                 <div class="chat-title-line"><span class="chat-preview">{% if item.last_message %}{{ item.last_message.preview|truncatechars:50 }}{% else %}Start a conversation{% endif %}</span>
@@ -21,11 +21,11 @@
                 </div>
             </div>
         </a>
-        {% empty %}<div class="empty-chat"><h2>A little hello goes a long way.</h2><p>Find a friend to start your first conversation.</p></div>{% endfor %}
+        {% empty %}<div class="empty-chat"><h2>No conversations</h2><p>Search for a username to start a chat.</p></div>{% endfor %}
     </nav>
     <div class="sidebar-footer"><div class="profile-mini">
-        <div class="avatar small">{{ user.username|slice:':1'|upper }}</div>
-        <div class="user-copy"><strong>@{{ user.username }}</strong><span>Your personal space</span></div>
+        <a href="{% url 'profile_detail' user.profile.public_id %}" aria-label="My profile">{% include "chat/avatar.html" with person=user size="small" %}</a>
+        <div class="user-copy"><a href="{% url 'profile_detail' user.profile.public_id %}"><strong>{{ user.profile.display_name }}</strong><span>@{{ user.username }}</span></a></div>
         <form action="{% url 'logout' %}" method="post">{% csrf_token %}<button class="icon-button" title="Log out" aria-label="Log out">↗</button></form>
     </div></div>
 </aside>

@@ -12,11 +12,12 @@ from .services import serialize_message
 class PrivateChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.chat_id = self.scope["url_route"]["kwargs"]["chat_id"]
-        self.room_group_name = f"private_chat_{self.chat_id}"
+
         self.last_typing = 0
         if not await self.check_user_access():
             await self.close(code=4403)
             return
+        self.room_group_name = f"private_chat_{self.chat_pk}"
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
@@ -38,7 +39,7 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
                 return
             self.last_typing = time.monotonic()
             await self.channel_layer.group_send(self.room_group_name, {
-                "type": "chat_event", "data": {"type": "typing", "sender_id": self.scope["user"].pk}})
+                "type": "chat_event", "data": {"type": "typing", "sender_id": self.public_user_id}})
             return
         content = payload.get("message")
         if not isinstance(content, str) or not 0 < len(content.strip()) <= 4000:
@@ -54,14 +55,22 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def check_user_access(self):
         user = self.scope["user"]
-        return user.is_authenticated and user.is_active and PrivateChat.objects.filter(
-            Q(user1_id=user.pk) | Q(user2_id=user.pk), pk=self.chat_id).exists()
+        if not user.is_authenticated:
+            return False
+        chat = PrivateChat.objects.filter(
+            Q(user1_id=user.pk, user1__is_active=True) | Q(user2_id=user.pk, user2__is_active=True),
+            public_id=self.chat_id).first()
+        if not chat:
+            return False
+        self.chat_pk = chat.pk
+        self.public_user_id = str(user.profile.public_id)
+        return True
 
     @database_sync_to_async
     def save_message(self, content):
         user = self.scope["user"]
-        chat = PrivateChat.objects.select_related("user1", "user2").filter(
-            Q(user1_id=user.pk) | Q(user2_id=user.pk), pk=self.chat_id).first()
+        chat = PrivateChat.objects.select_related("user1__profile", "user2__profile").filter(
+            Q(user1_id=user.pk) | Q(user2_id=user.pk), public_id=self.chat_id).first()
         if not chat:
             return None
         return serialize_message(Message.objects.create(chat=chat, sender=user,
