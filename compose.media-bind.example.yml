@@ -1,0 +1,10 @@
+# Optional override; copy existing media before enabling it.
+# docker compose -f docker-compose.yml -f compose.media-bind.example.yml up -d
+services:
+  web:
+    volumes:
+      - type: bind
+        source: ${PULSE_MEDIA_DIR:?Set PULSE_MEDIA_DIR to an existing absolute host directory}
+        target: /app/media
+        bind:
+          create_host_path: false
