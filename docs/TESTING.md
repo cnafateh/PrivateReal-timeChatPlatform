@@ -36,3 +36,8 @@ The browser suite checks day grouping, text/file submission, theme persistence, 
 - Verify a third account and a logged-out browser cannot download a copied attachment URL.
 
 Browser codecs, hardware microphone capture and public proxy configuration need these real-device checks in addition to CI.
+
+
+## Profile and identifier regression coverage
+
+The suite checks UUID uniqueness/backfills and rejection of numeric routes, owner-only profile editing, hidden contact details, optional phone sharing, Gravatar normalization/opt-out, avatar validation/resizing/removal, administrator file permissions and combined participant filters. Browser tests follow the profile links, upload an avatar and edit names/phone on desktop and mobile. No test contacts a real user's Gravatar account.

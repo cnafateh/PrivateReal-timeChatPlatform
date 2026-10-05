@@ -45,7 +45,7 @@ class BrowserTests(StaticLiveServerTestCase):
         self.page.get_by_label("Password", exact=True).fill("browser-password")
         self.page.get_by_role("button", name="Sign in", exact=True).click()
         self.page.wait_for_url(self.live_server_url + "/")
-        self.page.goto(f"{self.live_server_url}/chat/{self.bob.pk}/")
+        self.page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
 
     def tearDown(self):
         self.browser.close()
@@ -110,4 +110,33 @@ class BrowserTests(StaticLiveServerTestCase):
         expect(page.locator('.message-bubble audio')).to_have_count(1)
         expect(page.locator('.file-link').last).to_contain_text('Voice message')
         expect(page.locator('#attachment-preview')).to_be_hidden()
+        self.assertEqual(self.errors, [])
+
+    def test_edit_profile_photo_and_view_contact(self):
+        import io
+        from PIL import Image
+        from playwright.sync_api import expect
+        page = self.page
+        page.get_by_role("link", name="My profile", exact=True).click()
+        page.wait_for_url("**/people/**/")
+        page.get_by_role("link", name="Edit profile", exact=True).click()
+        page.get_by_label("First name", exact=True).fill("Alice")
+        page.get_by_label("Last name", exact=True).fill("Example")
+        page.get_by_label("Phone", exact=True).fill("+989121234567")
+        data = io.BytesIO()
+        Image.new("RGB", (32, 32), "blue").save(data, "PNG")
+        page.locator('#id_avatar').set_input_files({'name':'profile.png', 'mimeType':'image/png', 'buffer':data.getvalue()})
+        page.get_by_role('button', name='Save changes', exact=True).click()
+        expect(page.locator('.profile-card h2')).to_have_text('Alice Example')
+        expect(page.locator('.profile-card img')).to_be_visible()
+        expect(page.locator('.profile-details')).to_contain_text('+989121234567')
+        page.set_viewport_size({'width':390, 'height':844})
+        self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'))
+        if os.environ.get("BROWSER_SCREENSHOT_DIR"):
+            page.screenshot(animations="disabled", path=os.path.join(os.environ["BROWSER_SCREENSHOT_DIR"], "profile-mobile.png"))
+        page.get_by_role('link', name='Back to conversations', exact=True).click()
+        page.locator('.chat-row').first.click()
+        page.get_by_role('link', name='View profile', exact=True).click()
+        expect(page.locator('.profile-card h2')).to_have_text('bob')
+        expect(page.get_by_role('link', name='Edit profile', exact=True)).to_have_count(0)
         self.assertEqual(self.errors, [])

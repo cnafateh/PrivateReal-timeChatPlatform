@@ -75,3 +75,30 @@ button:disabled { cursor: wait; opacity: .55; }
 .messages { scroll-behavior: auto; }
 
 .composer textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+
+.avatar { position: relative; overflow: hidden; display: inline-grid; }
+.avatar-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.avatar.large { width: 96px; height: 96px; font-size: 32px; border-radius: 24px; }
+.compact-auth { grid-template-columns: minmax(0, 1fr); max-width: 480px; }
+.compact-auth .auth-form-side { padding: 36px; }
+.profile-card { padding: 30px; overflow-y: auto; flex: 1; min-height: 0; }
+.profile-card h2 { margin: 16px 0 6px; }
+.profile-details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 14px 24px; margin: 30px 0; }
+.profile-details dt { color: var(--text-secondary); }
+.profile-details dd { margin: 0; overflow-wrap: anywhere; }
+.profile-card .compact-button { display: inline-flex; align-items: center; }
+.profile-editor form { max-width: 540px; margin-top: 24px; }
+.checkbox-field { display: grid; grid-template-columns: 20px 1fr; gap: 6px 10px; align-items: center; }
+.checkbox-field input { width: 18px; height: 18px; }
+.checkbox-field p { grid-column: 2; margin: 0; }
+.profile-editor input[type="file"] { height: auto; padding: 10px; }
+@media (max-width: 700px) {
+    .profile-page .sidebar { display: none; }
+    .profile-card { padding: 22px 16px; }
+    .profile-details { font-size: 13px; gap: 14px; }
+    .compact-auth .auth-form-side { padding: 60px 22px 30px; }
+}
+
+.profile-mini .avatar { display: inline-grid; margin: 0; color: white; font-size: 14px; }
+.profile-mini .avatar > span { margin: 0; color: inherit; font-size: inherit; }
+.compact-button { display: inline-flex; align-items: center; justify-content: center; padding: 12px 18px; }

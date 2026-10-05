@@ -11,6 +11,7 @@
 | `TIME_ZONE` | Server timezone, default `Asia/Tehran`. The browser displays times in the viewer's timezone. |
 | `DB_HOST` | Empty for SQLite; otherwise PostgreSQL hostname. |
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` | PostgreSQL connection settings. |
+| `MEDIA_ROOT` | Optional filesystem media root; defaults to `BASE_DIR/media`. Must match the persistent mount. |
 | `REDIS_URL` | Full Redis URL, including authentication, database number or `rediss://` when needed. Empty selects a single-process in-memory channel layer. |
 | `SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS when your proxy correctly forwards the scheme. |
 | `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | Set both to `True` for HTTPS deployments. |
@@ -61,3 +62,12 @@ The supplied Compose file is now a complete local stack. If your server uses ext
 - **Messages disappear after recreation:** verify PostgreSQL and media volumes are persistent; do not use ephemeral SQLite inside production containers.
 - **Photo downloads instead of displaying:** only verified PNG, JPEG, GIF and WebP receive inline image treatment. Other content is intentionally a download.
 - **Static asset errors:** rerun collectstatic with the deployed version and restart workers.
+
+
+## Profile and public-URL upgrade
+
+Migrations `0005`–`0007` add profile records and populate a distinct random UUID for every existing user profile, conversation and message before enforcing non-null constraints. Existing attachments stay at their current relative storage paths. Back up the database and media, run all migrations and deploy all workers together. Refresh browser clients; old numeric user/chat/file routes are intentionally no longer accepted and old bookmarks return 404. API clients must use the returned UUID URLs. Do not fake the data migrations.
+
+Profiles use optional email for Gravatar fallback, without publishing the address in another user's profile. Uploaded photos take precedence. Phone numbers remain private unless explicitly shared.
+
+For volume inspection, backup, restart/redeploy behavior and an optional host bind mount, see [STORAGE.md](STORAGE.md). No production volume is automatically renamed or replaced by this upgrade.

@@ -4,12 +4,9 @@
 <div class="app-shell inbox-page">
     {% include 'chat/sidebar.html' %}
     <main class="main-panel"><div class="empty-chat">
-        <div class="welcome-orb">P</div>
-        <p class="eyebrow">STAY CLOSE, WHEREVER YOU ARE</p>
-        <h1>Good conversations<br>start here.</h1>
-        <p>A quick note, a favorite photo, a familiar voice.<br>Make room for the people who matter.</p>
-        <a href="{% url 'search_user' %}" class="compact-button">Start a conversation →</a>
-        <div class="feature-pills"><span>Photos & files</span><span>Voice messages</span><span>Real time</span></div>
+        <h1>Messages</h1>
+        <p>Select a conversation or start a new one.</p>
+        <a href="{% url 'search_user' %}" class="compact-button">New chat</a>
     </div></main>
 </div>
 {% endblock %}

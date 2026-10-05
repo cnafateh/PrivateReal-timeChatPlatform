@@ -31,7 +31,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --check static/js/chat.js && node --check static/js/theme.js
+      - run: node --check static/js/chat.js && node --check static/js/theme.js && node --check static/js/avatars.js
 
   integration:
     runs-on: ubuntu-latest

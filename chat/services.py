@@ -15,11 +15,11 @@ def serialize_message(message):
     stamp = timezone.localtime(message.timestamp)
     return {
         "id": message.pk, "message": message.content,
-        "sender": message.sender.username, "sender_id": message.sender_id,
+        "sender": message.sender.username, "sender_id": str(message.sender.profile.public_id),
         "timestamp": stamp.isoformat(), "is_read": message.is_read,
         "kind": message.kind, "name": message.original_name,
         "size": message.file_size, "client_id": str(message.client_id) if message.client_id else None,
-        "attachment_url": reverse("attachment", args=[message.pk]) if message.attachment else None,
+        "attachment_url": reverse("attachment", args=[message.public_id]) if message.attachment else None,
     }
 
 

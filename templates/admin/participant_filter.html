@@ -1,0 +1,9 @@
+<details data-filter-title="{{ title }}" open>
+    <summary>By {{ title }}</summary>
+    {% for choice in choices %}<form method="get" class="participant-filter">
+        {% for key, value in choice.preserved %}<input type="hidden" name="{{ key }}" value="{{ value }}">{% endfor %}
+        <label for="participant-username">Exact username (sender or recipient)</label>
+        <input id="participant-username" type="text" name="{{ spec.parameter_name }}" value="{{ choice.value }}" maxlength="150">
+        <button type="submit">Apply</button> <a href="{{ choice.reset_url }}">Clear</a>
+    </form>{% endfor %}
+</details>

@@ -1,0 +1,24 @@
+{% extends 'chat/base.html' %}
+{% block title %}{{ profile.display_name }} | Pulse{% endblock %}
+{% block content %}
+<div class="app-shell profile-page">
+    {% include 'chat/sidebar.html' %}
+    <main class="main-panel">
+        <header class="topbar"><div class="conversation-meta"><a href="{% url 'inbox' %}" class="icon-button" aria-label="Back to conversations">←</a><h1>Profile</h1></div></header>
+        <section class="profile-card">
+            {% include 'chat/avatar.html' with person=profile.user size='large' %}
+            <h2 dir="auto">{{ profile.display_name }}</h2><p class="muted">@{{ profile.user.username }}</p>
+            <dl class="profile-details">
+                {% if profile.user.first_name %}<dt>First name</dt><dd dir="auto">{{ profile.user.first_name }}</dd>{% endif %}
+                {% if profile.user.last_name %}<dt>Last name</dt><dd dir="auto">{{ profile.user.last_name }}</dd>{% endif %}
+                {% if profile.user == user %}
+                    {% if profile.user.email %}<dt>Email (private)</dt><dd>{{ profile.user.email }}</dd>{% endif %}
+                    {% if profile.phone %}<dt>Phone{% if not profile.show_phone %} (private){% endif %}</dt><dd>{{ profile.phone }}</dd>{% endif %}
+                {% elif profile.show_phone and profile.phone %}<dt>Phone</dt><dd>{{ profile.phone }}</dd>{% endif %}
+            </dl>
+            {% if profile.user == user %}<a class="compact-button" href="{% url 'edit_profile' %}">Edit profile</a>
+            {% else %}<a class="compact-button" href="{% url 'private_chat' profile.public_id %}">Message</a>{% endif %}
+        </section>
+    </main>
+</div>
+{% endblock %}

@@ -7,6 +7,9 @@ A self-hosted, real-time private messenger built with Django and Channels.
 
 ## Features
 
+- Public UUIDv4 URLs with member-only chat and attachment access.
+- Editable names, private email/phone, uploaded profile photos and optional Gravatar fallback.
+- User profile pages, with phone visibility controlled by the owner.
 - One-to-one conversations with real-time updates and unread counts.
 - Telegram-style day separators: Today, Yesterday, and full dates. Times follow the reader's device timezone; hover a time to see its complete date.
 - Photos, documents and other files, up to **5 MiB (5,242,880 bytes)** each, with optional captions.
@@ -15,7 +18,7 @@ A self-hosted, real-time private messenger built with Django and Channels.
 - Read receipts, typing indicators, earlier-message pagination and automatic reconnection.
 - Recovery of missed messages through periodic history synchronization; repeat requests do not duplicate messages.
 - Per-conversation text drafts in the current browser tab, multiline text, bidirectional message text and responsive layouts.
-- Branded administration with message filters, search, conversation counts and read-only message details.
+- Administration with image/audio previews, protected file downloads and combined participant, sender, recipient, attachment, type, date and read-state filters.
 
 ## Run locally
 
@@ -84,6 +87,8 @@ Voice recording needs microphone permission and HTTPS, except on localhost. File
 
 ## Documentation
 
+- [Complete application and architecture guide (فارسی)](docs/GUIDE.fa.md)
+- [Media persistence, host directories and backups](docs/STORAGE.md)
 - [Deployment, configuration and upgrades](docs/DEPLOYMENT.md)
 - [Architecture and HTTP/WebSocket protocol](docs/ARCHITECTURE.md)
 - [Tests and manual verification](docs/TESTING.md)
@@ -96,3 +101,19 @@ Voice recording needs microphone permission and HTTPS, except on localhost. File
 Bug reports and focused pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change.
 
 Released under the [MIT License](LICENSE).
+
+
+## Roadmap
+
+The following are planned or possible improvements, not features implemented today:
+
+- Verified email and phone ownership; password recovery and two-factor authentication.
+- Blocking/reporting users, moderation tools, account quotas and per-account rate limiting.
+- Full-text message search, replies, message editing/deletion with an explicit retention policy.
+- Push notifications and per-conversation notification preferences.
+- Group conversations with role-based membership.
+- Private object storage, malware scanning and audited orphan-file cleanup.
+- Range requests and transcoding for broader voice playback/seek support.
+- Account export/deletion, configurable profile visibility and an audit log for administrator file access.
+
+Contributions should include authorization tests and a migration/deployment plan where appropriate.

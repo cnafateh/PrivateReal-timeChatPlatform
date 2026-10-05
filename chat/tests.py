@@ -38,7 +38,7 @@ class ChatTests(TestCase):
 
     def send(self, **data):
         data.setdefault("client_id", str(uuid.uuid4()))
-        return self.client.post(reverse("send_message", args=[self.chat.pk]), data)
+        return self.client.post(reverse("send_message", args=[self.chat.public_id]), data)
 
     def message(self, **kwargs):
         values = dict(chat=self.chat, sender=self.alice, receiver=self.bob, content="Hello")
@@ -73,15 +73,15 @@ class ChatTests(TestCase):
     def test_csrf_is_required(self):
         client = Client(enforce_csrf_checks=True)
         client.force_login(self.alice)
-        for name, args in [("send_message", [self.chat.pk]), ("mark_read", [self.chat.pk]), ("logout", [])]:
+        for name, args in [("send_message", [self.chat.public_id]), ("mark_read", [self.chat.public_id]), ("logout", [])]:
             self.assertEqual(client.post(reverse(name, args=args), {"message":"hello"}).status_code, 403)
 
     def test_private_pages_and_theme_controls(self):
-        for url in ["/", "/search/", reverse("private_chat", args=[self.bob.pk])]:
+        for url in ["/", "/search/", reverse("private_chat", args=[self.bob.profile.public_id])]:
             response = self.client.get(url)
             self.assertEqual(response.status_code, 200)
             self.assertContains(response, 'id="theme-toggle"')
-        self.assertRedirects(self.client.get(reverse("private_chat", args=[self.alice.pk])), "/")
+        self.assertRedirects(self.client.get(reverse("private_chat", args=[self.alice.profile.public_id])), "/")
 
     def test_search_handles_case_variants_without_crashing(self):
         User.objects.create_user("BOB")
@@ -93,7 +93,7 @@ class ChatTests(TestCase):
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertEqual(data["message"], "Hello فارسی")
-        self.assertEqual(data["sender_id"], self.alice.pk)
+        self.assertEqual(data["sender_id"], str(self.alice.profile.public_id))
         self.assertIn("T", data["timestamp"])
         self.assertEqual(Message.objects.get().receiver, self.bob)
 
@@ -110,7 +110,7 @@ class ChatTests(TestCase):
         self.assertEqual(first.json()["id"], retry.json()["id"])
         self.assertEqual(Message.objects.count(), 1)
         other = PrivateChat.get_or_create_chat(self.alice, self.eve)
-        response = self.client.post(reverse("send_message", args=[other.pk]), {"message":"other", "client_id":client_id})
+        response = self.client.post(reverse("send_message", args=[other.public_id]), {"message":"other", "client_id":client_id})
         self.assertEqual(response.status_code, 409)
 
     def test_broadcast_failure_does_not_lose_message(self):
@@ -122,7 +122,7 @@ class ChatTests(TestCase):
     def test_history_and_send_are_member_only(self):
         self.client.force_login(self.eve)
         for name in ["message_history", "send_message", "mark_read"]:
-            url = reverse(name, args=[self.chat.pk])
+            url = reverse(name, args=[self.chat.public_id])
             response = self.client.get(url) if name == "message_history" else self.client.post(url)
             self.assertEqual(response.status_code, 404)
         self.assertEqual(Message.objects.count(), 0)
@@ -184,7 +184,7 @@ class ChatTests(TestCase):
 
     def test_history_pagination_and_catchup(self):
         rows = [self.message(content=str(i)) for i in range(105)]
-        url = reverse("message_history", args=[self.chat.pk])
+        url = reverse("message_history", args=[self.chat.public_id])
         latest = self.client.get(url).json()
         self.assertTrue(latest["has_more"])
         self.assertEqual([m["id"] for m in latest["messages"]], [m.pk for m in rows[-50:]])
@@ -200,13 +200,13 @@ class ChatTests(TestCase):
         first = self.message(sender=self.bob, receiver=self.alice)
         later = self.message(sender=self.bob, receiver=self.alice)
         own = self.message()
-        response = self.client.post(reverse("mark_read", args=[self.chat.pk]), {"through":first.pk})
+        response = self.client.post(reverse("mark_read", args=[self.chat.public_id]), {"through":first.pk})
         self.assertEqual(response.json()["updated"], 1)
         first.refresh_from_db(); later.refresh_from_db(); own.refresh_from_db()
         self.assertTrue(first.is_read)
         self.assertFalse(later.is_read)
         self.assertFalse(own.is_read)
-        self.assertEqual(self.client.post(reverse("mark_read", args=[self.chat.pk]), {"through":"bad"}).status_code, 400)
+        self.assertEqual(self.client.post(reverse("mark_read", args=[self.chat.public_id]), {"through":"bad"}).status_code, 400)
 
     def test_inbox_has_constant_query_count(self):
         for i in range(8):
@@ -219,7 +219,7 @@ class ChatTests(TestCase):
 
     def test_script_content_is_safe_in_initial_json(self):
         self.message(content='</script><script>alert("x")</script>')
-        response = self.client.get(reverse("private_chat", args=[self.bob.pk]))
+        response = self.client.get(reverse("private_chat", args=[self.bob.profile.public_id]))
         self.assertNotContains(response, '</script><script>alert')
         self.assertContains(response, r'\u003C/script\u003E')
 
@@ -250,7 +250,7 @@ class SocketTests(TransactionTestCase):
     def socket(self, user):
         communicator = WebsocketCommunicator(PrivateChatConsumer.as_asgi(), "/ws/")
         communicator.scope["user"] = user
-        communicator.scope["url_route"] = {"kwargs":{"chat_id":str(self.chat.pk)}}
+        communicator.scope["url_route"] = {"kwargs":{"chat_id":str(self.chat.public_id)}}
         return communicator
 
     def test_rejects_anonymous_and_nonmembers(self):
@@ -288,7 +288,7 @@ class SocketTests(TransactionTestCase):
     def test_origin_validator_rejects_foreign_site(self):
         from chatapp_project.asgi import application
         async def run():
-            socket = WebsocketCommunicator(application, f"/ws/chat/private/{self.chat.pk}/",
+            socket = WebsocketCommunicator(application, f"/ws/chat/private/{self.chat.public_id}/",
                                             headers=[(b"origin", b"https://untrusted.example")])
             connected, _ = await socket.connect()
             self.assertFalse(connected)
@@ -305,7 +305,7 @@ class SocketTests(TransactionTestCase):
                 self.assertTrue((await socket.connect())[0])
                 try:
                     response = await database_sync_to_async(client.post)(
-                        reverse("send_message", args=[self.chat.pk]),
+                        reverse("send_message", args=[self.chat.public_id]),
                         {"client_id":str(uuid.uuid4()), "file":SimpleUploadedFile("hello.txt", b"Hello")})
                     self.assertEqual(response.status_code, 201)
                     event = await socket.receive_json_from()
