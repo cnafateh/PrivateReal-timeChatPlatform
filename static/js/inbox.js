@@ -2,7 +2,7 @@
     'use strict';
     const list = document.querySelector('.conversation-list');
     if (!list) return;
-    let socket, retry = 0, timer, loading = false, closed = false;
+    let socket, retry = 0, timer, loading = false, closed = false, lastHtml;
     async function refresh() {
         if (loading || document.hidden) return;
         loading = true;
@@ -10,8 +10,10 @@
             const response = await fetch('/api/inbox/', {credentials: 'same-origin', cache: 'no-store'});
             if (!response.ok || response.redirected) return;
             const data = await response.json();
+            if (data.html === lastHtml) return;
             const next = new DOMParser().parseFromString(data.html, 'text/html').querySelector('.conversation-list');
             if (!next) return;
+            lastHtml = data.html;
             const current = document.querySelector('.conversation-list');
             const scrollTop = current.scrollTop;
             current.replaceWith(next);
