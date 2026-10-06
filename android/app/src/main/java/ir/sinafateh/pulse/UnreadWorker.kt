@@ -35,22 +35,27 @@ class UnreadWorker(context: Context, parameters: WorkerParameters) : Worker(cont
                 return if (connection.responseCode >= 500) Result.retry() else Result.success()
             }
             val body = connection.inputStream.bufferedReader().use { it.readText() }
-            val messages = JSONObject(body).getJSONArray("messages")
+            val payload = JSONObject(body)
+            val messages = payload.getJSONArray("messages")
             val prefs = applicationContext.getSharedPreferences("unread", Context.MODE_PRIVATE)
-            val lastId = prefs.getLong("last_message_id", 0)
+            val userId = payload.getString("user_id")
+            val lastId = if (prefs.getString("user_id", null) == userId)
+                prefs.getLong("last_message_id", 0) else 0
             var newest = lastId
             val pending = mutableListOf<JSONObject>()
             for (index in 0 until messages.length()) {
                 val message = messages.getJSONObject(index)
                 val id = message.getLong("id")
                 if (id > newest) newest = id
-                if (id > lastId) pending.add(message)
+                if (id > lastId && (lastId != 0L || !message.getBoolean("is_read")))
+                    pending.add(message)
             }
-            if (pending.isNotEmpty() && canNotify()) {
+            if (pending.isNotEmpty() && !canNotify()) return Result.success()
+            if (pending.isNotEmpty()) {
                 createChannel()
                 pending.takeLast(5).forEach { notifyMessage(it) }
-                prefs.edit().putLong("last_message_id", newest).apply()
             }
+            prefs.edit().putString("user_id", userId).putLong("last_message_id", newest).apply()
             Result.success()
         } catch (_: Exception) {
             Result.retry()

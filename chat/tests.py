@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
-from .consumers import PrivateChatConsumer
+from .consumers import InboxConsumer, PrivateChatConsumer
 from .models import Message, PrivateChat
 from .services import MAX_FILE_SIZE, serialize_message
 
@@ -132,11 +132,31 @@ class ChatTests(TestCase):
 
     def test_mobile_unread_only_returns_received_messages(self):
         received = Message.objects.create(chat=self.chat, sender=self.bob, receiver=self.alice, content="New")
+        read = Message.objects.create(chat=self.chat, sender=self.bob, receiver=self.alice,
+                                      content="Already read", is_read=True)
         self.message(content="Sent")
         response = self.client.get(reverse("mobile_unread"))
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([message["id"] for message in response.json()["messages"]], [received.pk])
+        self.assertEqual([message["id"] for message in response.json()["messages"]], [received.pk, read.pk])
         self.assertEqual(response.json()["messages"][0]["chat_id"], str(self.chat.public_id))
+        self.assertEqual(response.json()["user_id"], str(self.alice.profile.public_id))
+
+    def test_inbox_updates_include_new_message_and_unread_count(self):
+        url = reverse("inbox_updates")
+        self.assertEqual(self.client.get(url).status_code, 200)
+        message = self.message(sender=self.bob, receiver=self.alice, content="Fresh message")
+        response = self.client.get(url)
+        self.assertContains(response, "Fresh message")
+        self.assertIn("1 unread message", response.json()["html"])
+        self.client.force_login(self.eve)
+        self.assertNotIn("Fresh message", self.client.get(url).json()["html"])
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_multiline_message_is_preserved(self):
+        response = self.send(message="First line\nSecond line")
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["message"], "First line\nSecond line")
 
     def test_broadcast_failure_does_not_lose_message(self):
         with patch("chat.services.get_channel_layer", side_effect=RuntimeError("unavailable")), self.assertLogs("chat.services", level="ERROR"):
@@ -277,6 +297,37 @@ class SocketTests(TransactionTestCase):
         communicator.scope["user"] = user
         communicator.scope["url_route"] = {"kwargs":{"chat_id":str(self.chat.public_id)}}
         return communicator
+
+    def inbox_socket(self, user):
+        communicator = WebsocketCommunicator(InboxConsumer.as_asgi(), "/ws/inbox/")
+        communicator.scope["user"] = user
+        return communicator
+
+    def test_inbox_socket_receives_message_updates(self):
+        client = Client()
+        client.force_login(self.alice)
+        async def run():
+            alice = self.inbox_socket(self.alice)
+            bob = self.inbox_socket(self.bob)
+            outsider = self.inbox_socket(self.eve)
+            anonymous = self.inbox_socket(AnonymousUser())
+            self.assertFalse((await anonymous.connect())[0])
+            self.assertTrue((await alice.connect())[0])
+            self.assertTrue((await bob.connect())[0])
+            self.assertTrue((await outsider.connect())[0])
+            try:
+                from channels.db import database_sync_to_async
+                response = await database_sync_to_async(client.post)(
+                    reverse("send_message", args=[self.chat.public_id]),
+                    {"client_id": str(uuid.uuid4()), "message": "Live inbox"})
+                self.assertEqual(response.status_code, 201)
+                self.assertEqual((await alice.receive_json_from())["type"], "inbox_update")
+                self.assertEqual((await bob.receive_json_from())["type"], "inbox_update")
+                self.assertTrue(await outsider.receive_nothing(timeout=0.2))
+            finally:
+                await alice.disconnect(); await bob.disconnect(); await outsider.disconnect()
+                await anonymous.disconnect()
+        async_to_sync(run)()
 
     def test_rejects_anonymous_and_nonmembers(self):
         async def run():

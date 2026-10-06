@@ -41,6 +41,17 @@ def broadcast(chat_id, data):
         logger.exception("Could not broadcast conversation %s", chat_id)
 
 
+def broadcast_inbox(message):
+    try:
+        layer = get_channel_layer()
+        for user_id in (message.sender_id, message.receiver_id):
+            async_to_sync(layer.group_send)(
+                f"inbox_user_{user_id}", {"type": "inbox_event", "data": {"type": "inbox_update"}}
+            )
+    except Exception:
+        logger.exception("Could not broadcast inbox update for message %s", message.pk)
+
+
 def inspect_upload(upload, requested_kind):
     from PIL import Image, UnidentifiedImageError
     import warnings

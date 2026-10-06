@@ -9,11 +9,12 @@ from django.db.models import Count, Max, OuterRef, Q, Subquery
 from django.http import FileResponse, Http404, JsonResponse
 from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import ProfileForm, RegisterForm
 from .models import Message, PrivateChat, Profile
-from .services import MAX_MESSAGE_LENGTH, broadcast, inspect_upload, serialize_message
+from .services import MAX_MESSAGE_LENGTH, broadcast, broadcast_inbox, inspect_upload, serialize_message
 
 
 def login_view(request):
@@ -61,6 +62,13 @@ def conversations(user):
 @login_required
 def inbox(request):
     return render(request, "chat/inbox.html", {"chats": conversations(request.user)})
+
+
+@login_required
+@require_GET
+def inbox_updates(request):
+    html = render_to_string("chat/conversation_list.html", {"chats": conversations(request.user)}, request)
+    return JsonResponse({"html": html})
 
 
 @login_required
@@ -177,6 +185,7 @@ def send_message(request, chat_id):
         raise
     data = serialize_message(message)
     broadcast(chat.pk, {"type": "message", **data})
+    broadcast_inbox(message)
     return JsonResponse(data, status=201)
 
 
@@ -193,20 +202,21 @@ def mark_read(request, chat_id):
     changed = chat.messages.filter(receiver=request.user, is_read=False, pk__lte=through).update(is_read=True)
     if changed:
         broadcast(chat.pk, {"type": "read", "reader_id": str(request.user.profile.public_id), "through": through})
+        broadcast_inbox(chat.messages.filter(receiver=request.user, pk__lte=through).latest("pk"))
     return JsonResponse({"updated": changed})
 
 
 @login_required
 @require_GET
 def mobile_unread(request):
-    unread = list(Message.objects.filter(receiver=request.user, is_read=False)
+    received = list(Message.objects.filter(receiver=request.user)
                   .select_related("sender__profile", "reply_to__sender", "chat")
                   .order_by("-id")[:50])
     return JsonResponse({"messages": [
         {**serialize_message(message), "chat_id": str(message.chat.public_id),
          "sender_profile_id": str(message.sender.profile.public_id)}
-        for message in reversed(unread)
-    ]})
+        for message in reversed(received)
+    ], "user_id": str(request.user.profile.public_id)})
 
 
 @login_required

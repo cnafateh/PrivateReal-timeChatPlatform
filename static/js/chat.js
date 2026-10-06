@@ -202,12 +202,14 @@
     }
     function setBusy(value) {
         sending = value;
-        [send, input, $('attach-button'), $('voice-button'), $('remove-attachment'), $('cancel-reply')].forEach(el => { el.disabled = value; });
+        [send, $('attach-button'), $('voice-button'), $('remove-attachment'), $('cancel-reply')].forEach(el => { el.disabled = value; });
     }
     async function submit(event) {
         event.preventDefault();
         if (sending || (recorder && recorder.state === 'recording')) return;
-        const text = input.value.trim();
+        input.focus({preventScroll: true});
+        const original = input.value;
+        const text = original.trim();
         if (!text && !selectedFile) return;
         const fingerprint = JSON.stringify([text, selectedFile?.name, selectedFile?.size, selectedFile?.lastModified, replyTarget?.id]);
         if (fingerprint !== pendingFingerprint) { pendingId = messageId(); pendingFingerprint = fingerprint; }
@@ -217,10 +219,13 @@
         setBusy(true); error();
         try {
             const data = await request(config.sendUrl, {method:'POST', body}); merge([data], true);
-            input.value = ''; input.style.height = ''; clearFile(); clearReply(); pendingFingerprint = null;
-            try { sessionStorage.removeItem(`pulse-draft-${config.userId}-${config.chatId}`); } catch (_) { /* Storage is optional. */ }
+            if (input.value === original) {
+                input.value = ''; input.style.height = '';
+                try { sessionStorage.removeItem(`pulse-draft-${config.userId}-${config.chatId}`); } catch (_) { /* Storage is optional. */ }
+            }
+            clearFile(); clearReply(); pendingFingerprint = null;
         } catch (exc) { error(`${exc.message} Your message is kept here for retry.`); }
-        finally { setBusy(false); input.focus(); }
+        finally { setBusy(false); input.focus({preventScroll: true}); }
     }
     async function recordVoice() {
         if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
@@ -264,8 +269,12 @@
         } finally { $('voice-button').disabled = false; }
     }
     $('composer').addEventListener('submit', submit);
+    send.addEventListener('mousedown', event => event.preventDefault());
     input.addEventListener('keydown', event => {
-        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); $('composer').requestSubmit(); }
+        if (event.key === 'Enter' && !event.isComposing &&
+            (event.ctrlKey || event.metaKey || (!event.shiftKey && !matchMedia('(pointer: coarse)').matches))) {
+            event.preventDefault(); $('composer').requestSubmit();
+        }
     });
     input.addEventListener('input', () => {
         input.style.height = 'auto'; input.style.height = `${Math.min(input.scrollHeight, 140)}px`;

@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [main, feature/android-app]
+    branches: [main, fix/live-inbox-and-android-compose]
     tags: [android-v*]
     paths:
       - android/**

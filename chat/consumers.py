@@ -6,7 +6,30 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from django.db.models import Q
 
 from .models import Message, PrivateChat
-from .services import serialize_message
+from .services import broadcast_inbox, serialize_message
+
+
+class InboxConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        user_id = await self.active_user_id()
+        if user_id is None:
+            await self.close(code=4403)
+            return
+        self.room_group_name = f"inbox_user_{user_id}"
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "room_group_name"):
+            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+    async def inbox_event(self, event):
+        await self.send(text_data=json.dumps(event["data"]))
+
+    @database_sync_to_async
+    def active_user_id(self):
+        user = self.scope["user"]
+        return user.pk if user.is_authenticated and user.is_active else None
 
 
 class PrivateChatConsumer(AsyncWebsocketConsumer):
@@ -48,6 +71,7 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
         if message:
             await self.channel_layer.group_send(self.room_group_name, {
                 "type": "chat_event", "data": {"type": "message", **message}})
+            await self.notify_inboxes(message["id"])
 
     async def chat_event(self, event):
         await self.send(text_data=json.dumps(event["data"]))
@@ -83,3 +107,7 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
                 return None
         return serialize_message(Message.objects.create(chat=chat, sender=user,
                                  receiver=chat.get_other_user(user), content=content, reply_to=reply_to))
+
+    @database_sync_to_async
+    def notify_inboxes(self, message_id):
+        broadcast_inbox(Message.objects.get(pk=message_id))

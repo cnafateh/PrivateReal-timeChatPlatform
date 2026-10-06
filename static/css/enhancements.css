@@ -53,6 +53,10 @@ button:disabled { cursor: wait; opacity: .55; }
 .start-chat { color: var(--primary); }
 #voice-button.recording { color: var(--danger); background: #ff657d20; }
 @media (max-width: 700px) {
+    .app-shell, .inbox-page, .search-page, .main-panel {
+        height: var(--app-height, 100dvh);
+        max-height: var(--app-height, 100dvh);
+    }
     .theme-toggle { top: 16px; right: 14px; width: 32px; height: 32px; }
     .top-actions { padding-right: 35px; }
     .conversation-label { display: none; }
