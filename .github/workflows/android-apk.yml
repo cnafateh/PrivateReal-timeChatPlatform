@@ -106,11 +106,7 @@ jobs:
           script: |
             adb install -r dist/app-debug.apk
             adb shell pm path ir.sinafateh.pulse
-            if [ -f dist/release/app-release.apk ]; then
-              adb uninstall ir.sinafateh.pulse
-              adb install -r dist/release/app-release.apk
-              adb shell pm path ir.sinafateh.pulse
-            fi
+            test ! -f dist/release/app-release.apk || (adb uninstall ir.sinafateh.pulse && adb install -r dist/release/app-release.apk && adb shell pm path ir.sinafateh.pulse)
 
   release:
     if: startsWith(github.ref, 'refs/tags/android-v')
