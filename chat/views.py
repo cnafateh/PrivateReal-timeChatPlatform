@@ -198,6 +198,19 @@ def mark_read(request, chat_id):
 
 @login_required
 @require_GET
+def mobile_unread(request):
+    unread = list(Message.objects.filter(receiver=request.user, is_read=False)
+                  .select_related("sender__profile", "reply_to__sender", "chat")
+                  .order_by("-id")[:50])
+    return JsonResponse({"messages": [
+        {**serialize_message(message), "chat_id": str(message.chat.public_id),
+         "sender_profile_id": str(message.sender.profile.public_id)}
+        for message in reversed(unread)
+    ]})
+
+
+@login_required
+@require_GET
 def attachment(request, message_id):
     message = get_object_or_404(Message.objects.filter(Q(chat__user1=request.user) | Q(chat__user2=request.user)),
                                 public_id=message_id)

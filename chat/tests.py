@@ -130,6 +130,14 @@ class ChatTests(TestCase):
             self.assertEqual(self.send(message="Answer", reply_to=target).status_code, 400)
         self.assertEqual(self.chat.messages.count(), 0)
 
+    def test_mobile_unread_only_returns_received_messages(self):
+        received = Message.objects.create(chat=self.chat, sender=self.bob, receiver=self.alice, content="New")
+        self.message(content="Sent")
+        response = self.client.get(reverse("mobile_unread"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([message["id"] for message in response.json()["messages"]], [received.pk])
+        self.assertEqual(response.json()["messages"][0]["chat_id"], str(self.chat.public_id))
+
     def test_broadcast_failure_does_not_lose_message(self):
         with patch("chat.services.get_channel_layer", side_effect=RuntimeError("unavailable")), self.assertLogs("chat.services", level="ERROR"):
             response = self.send(message="Still saved")
