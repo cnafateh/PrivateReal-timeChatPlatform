@@ -39,7 +39,10 @@ class BrowserTests(StaticLiveServerTestCase):
         self.browser = self.playwright.chromium.launch(**options)
         self.page = self.browser.new_page()
         self.errors = []
+        self.send_responses = []
         self.page.on("pageerror", lambda exc: self.errors.append(str(exc)))
+        self.page.on("response", lambda response: self.send_responses.append(response.status)
+                     if "/send/" in response.url else None)
         self.page.goto(f"{self.live_server_url}/login/")
         self.page.get_by_label("Username", exact=True).fill("alice")
         self.page.get_by_label("Password", exact=True).fill("browser-password")
@@ -61,7 +64,11 @@ class BrowserTests(StaticLiveServerTestCase):
         expect(page.locator('.date-divider').nth(1)).to_have_text('Yesterday')
         page.get_by_role('textbox', name='Message', exact=True).fill('A new message')
         page.get_by_role('button', name='Send message', exact=True).click()
-        expect(page.locator('.message-text').last).to_have_text('A new message')
+        try:
+            expect(page.locator('.message-text').last).to_have_text('A new message')
+        except AssertionError:
+            self.fail(f"send responses={self.send_responses}, error={page.locator('#chat-error').inner_text()}, "
+                      f"page errors={self.errors}")
         page.locator('#file-input').set_input_files({'name':'notes.txt', 'mimeType':'text/plain', 'buffer':b'hello from a file'})
         expect(page.locator('#attachment-name')).to_contain_text('notes.txt')
         page.get_by_role('button', name='Send message', exact=True).click()
@@ -104,6 +111,9 @@ class BrowserTests(StaticLiveServerTestCase):
                                            is_mobile=True, has_touch=True)
         try:
             page = context.new_page()
+            mobile_responses = []
+            page.on("response", lambda response: mobile_responses.append(response.status)
+                    if "/send/" in response.url else None)
             page.goto(f"{self.live_server_url}/login/")
             page.get_by_label("Username", exact=True).fill("alice")
             page.get_by_label("Password", exact=True).fill("browser-password")
@@ -115,7 +125,10 @@ class BrowserTests(StaticLiveServerTestCase):
             composer.type("Second line")
             expect(composer).to_have_value("First line\nSecond line")
             page.get_by_role("button", name="Send message", exact=True).click()
-            expect(page.locator(".message-text").last).to_have_text("First line\nSecond line")
+            try:
+                expect(page.locator(".message-text").last).to_have_text("First line\nSecond line")
+            except AssertionError:
+                self.fail(f"send responses={mobile_responses}, error={page.locator('#chat-error').inner_text()}")
             expect(composer).to_be_focused()
             expect(composer).to_have_value("")
             self.assertTrue(page.locator('#chat-messages').evaluate(
