@@ -44,7 +44,7 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
         content = payload.get("message")
         if not isinstance(content, str) or not 0 < len(content.strip()) <= 4000:
             return
-        message = await self.save_message(content.strip())
+        message = await self.save_message(content.strip(), payload.get("reply_to"))
         if message:
             await self.channel_layer.group_send(self.room_group_name, {
                 "type": "chat_event", "data": {"type": "message", **message}})
@@ -67,11 +67,19 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
         return True
 
     @database_sync_to_async
-    def save_message(self, content):
+    def save_message(self, content, reply_id):
         user = self.scope["user"]
         chat = PrivateChat.objects.select_related("user1__profile", "user2__profile").filter(
             Q(user1_id=user.pk) | Q(user2_id=user.pk), public_id=self.chat_id).first()
         if not chat:
             return None
+        reply_to = None
+        if reply_id is not None:
+            try:
+                reply_to = chat.messages.select_related("sender").filter(pk=int(reply_id)).first()
+            except (TypeError, ValueError):
+                return None
+            if reply_to is None:
+                return None
         return serialize_message(Message.objects.create(chat=chat, sender=user,
-                                 receiver=chat.get_other_user(user), content=content))
+                                 receiver=chat.get_other_user(user), content=content, reply_to=reply_to))

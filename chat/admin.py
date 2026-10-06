@@ -144,7 +144,7 @@ class MessageAdmin(admin.ModelAdmin):
                    ("sender", admin.RelatedOnlyFieldListFilter), ("receiver", admin.RelatedOnlyFieldListFilter)]
     search_fields = ["sender__username", "receiver__username", "content", "original_name"]
     list_select_related = ["sender", "receiver", "chat"]
-    readonly_fields = ["chat", "sender", "receiver", "content", "kind", "original_name",
+    readonly_fields = ["chat", "sender", "receiver", "reply_to", "content", "kind", "original_name",
                        "file_size", "mime_type", "timestamp", "client_id", "is_read", "public_id", "attachment_preview"]
     fields = readonly_fields
     date_hierarchy = "timestamp"
