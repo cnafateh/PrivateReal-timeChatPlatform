@@ -10,9 +10,11 @@ Open `android/` in Android Studio with JDK 17 and Android SDK 36, or run:
 gradle -p android :app:assembleDebug
 ```
 
-The APK is at `android/app/build/outputs/apk/debug/app-debug.apk`. The [Android APK workflow](../.github/workflows/android-apk.yml) builds the same installable APK on each change to the Android project. Download the `pulse-android-apk` artifact from a successful workflow run on GitHub Actions, unzip it and install `app-debug.apk` on an Android device running Android 8.0 or newer. GitHub retains these artifacts for 30 days.
+The APK is at `android/app/build/outputs/apk/debug/app-debug.apk`. The [Android APK workflow](../.github/workflows/android-apk.yml) builds and verifies the APK, then installs it on an Android 15 emulator. On GitHub Actions, `pulse-android-apk` is a **ZIP archive**, not an APK: extract it before installing `app-debug.apk`. Do not try to install `pulse-android-apk.zip`. GitHub retains Actions artifacts for 30 days.
 
-This is a development-signed installation build. Do not distribute it as a production release. For a signed production APK, create a private, persistent Android keystore and add four repository secrets: `ANDROID_KEYSTORE_BASE64` (base64 of the keystore file), `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. The workflow then also uploads `pulse-android-release-apk`. Keep the original keystore secure: future updates must use the same key. Never commit the key to this repository. The app's package name is `ir.sinafateh.pulse`.
+For a phone, use the [GitHub Releases page](https://github.com/cnafateh/PrivateReal-timeChatPlatform/releases) and download the `.apk` asset directly. Release files are not wrapped in the Actions ZIP. Open the downloaded `.apk` with Android's package installer. The minimum supported version is Android 8.0.
+
+Without signing secrets, a tagged GitHub Release is marked as a preview and contains a development-signed installation build. Each CI run may use a different debug key, so a newer preview may require uninstalling an older preview first. For a production APK that can update in place, create a private, persistent Android keystore and add four repository secrets: `ANDROID_KEYSTORE_BASE64` (base64 of the keystore file), `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. The workflow then also uploads `pulse-android-release-apk` and publishes that signed APK for Android version tags. Keep the original keystore secure: future updates must use the same key. Never commit the key to this repository. The app's package name is `ir.sinafateh.pulse`.
 
 ## Notifications
 
