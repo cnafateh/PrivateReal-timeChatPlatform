@@ -12,7 +12,7 @@ gradle -p android :app:assembleDebug
 
 The APK is at `android/app/build/outputs/apk/debug/app-debug.apk`. The [Android APK workflow](../.github/workflows/android-apk.yml) builds the same installable APK on each change to the Android project. Download the `pulse-android-apk` artifact from a successful workflow run on GitHub Actions, unzip it and install `app-debug.apk` on an Android device running Android 8.0 or newer. GitHub retains these artifacts for 30 days.
 
-This is a development-signed installation build. Do not distribute it as a production release. A production APK needs a private, persistent signing key and a release build; never commit the key to this repository. The app's package name is `ir.sinafateh.pulse`.
+This is a development-signed installation build. Do not distribute it as a production release. For a signed production APK, create a private, persistent Android keystore and add four repository secrets: `ANDROID_KEYSTORE_BASE64` (base64 of the keystore file), `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`. The workflow then also uploads `pulse-android-release-apk`. Keep the original keystore secure: future updates must use the same key. Never commit the key to this repository. The app's package name is `ir.sinafateh.pulse`.
 
 ## Notifications
 
