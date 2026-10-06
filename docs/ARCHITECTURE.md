@@ -38,6 +38,7 @@ All chat endpoints require a session. URL path identifiers are random UUIDv4 val
 | GET | `/api/chats/<chat_uuid>/messages/?after=<id>` | Catch-up page, ascending |
 | POST | `/api/chats/<chat_uuid>/send/` | Multipart `message`, `client_id`, optional `file`, optional `kind=voice`, optional `reply_to=<message_id>` |
 | POST | `/api/chats/<chat_uuid>/read/` | Acknowledge `through=<message_id>` |
+| GET | `/api/mobile/unread/` | Latest unread messages for the signed-in user, used by Android notifications |
 | GET | `/attachments/<message_uuid>/` | Member-only file or inline media |
 | GET | `/attachments/<message_uuid>/?download=1` | Force file download |
 | GET/POST | `/profile/edit/` | Edit only the signed-in user’s profile |

@@ -16,6 +16,7 @@ A self-hosted, real-time private messenger built with Django and Channels.
 - Record, preview, remove and send voice messages. Recording stops at five minutes or near the upload limit.
 - Persistent light/dark theme, with the operating-system preference as the default.
 - Read receipts, typing indicators, earlier-message pagination and automatic reconnection.
+- Reply to messages with a quoted preview in the conversation.
 - Recovery of missed messages through periodic history synchronization; repeat requests do not duplicate messages.
 - Per-conversation text drafts in the current browser tab, multiline text, bidirectional message text and responsive layouts.
 - Administration with image/audio previews, protected file downloads and combined participant, sender, recipient, attachment, type, date and read-state filters.
@@ -88,6 +89,7 @@ Voice recording needs microphone permission and HTTPS, except on localhost. File
 ## Documentation
 
 - [Complete application and architecture guide (فارسی)](docs/GUIDE.fa.md)
+- [Android app build, installation and notifications](docs/ANDROID.md)
 - [Media persistence, host directories and backups](docs/STORAGE.md)
 - [Deployment, configuration and upgrades](docs/DEPLOYMENT.md)
 - [Architecture and HTTP/WebSocket protocol](docs/ARCHITECTURE.md)
