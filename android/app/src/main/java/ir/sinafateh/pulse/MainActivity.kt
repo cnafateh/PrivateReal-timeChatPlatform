@@ -56,7 +56,9 @@ class MainActivity : Activity() {
                 val uri = request.url
                 if (uri.scheme == "https" && uri.host == HOST) return false
                 if (request.isForMainFrame) {
-                    startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    if (uri.scheme in listOf("https", "http", "mailto", "tel")) {
+                        try { startActivity(Intent(Intent.ACTION_VIEW, uri)) } catch (_: Exception) { }
+                    }
                     return true
                 }
                 return false
