@@ -58,7 +58,7 @@ jobs:
         run: |
           test -n "$PULSE_STORE_PASSWORD" && test -n "$PULSE_KEY_ALIAS" && test -n "$PULSE_KEY_PASSWORD"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/release.keystore
-          echo "PULSE_KEYSTORE_FILE=$GITHUB_WORKSPACE/android/release.keystore" >> "$GITHUB_ENV"
+          export PULSE_KEYSTORE_FILE="$GITHUB_WORKSPACE/android/release.keystore"
           gradle -p android :app:assembleRelease --no-daemon
           APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
           "$APKSIGNER" verify --verbose android/app/build/outputs/apk/release/app-release.apk
