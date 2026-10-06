@@ -4,8 +4,9 @@ import time
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.db.models import Q
+from django.utils import timezone
 
-from .models import Message, PrivateChat
+from .models import Message, PrivateChat, Profile
 from .services import broadcast_inbox, serialize_message
 
 
@@ -15,7 +16,10 @@ class InboxConsumer(AsyncWebsocketConsumer):
         if user_id is None:
             await self.close(code=4403)
             return
+        self.user_id = user_id
         self.room_group_name = f"inbox_user_{user_id}"
+        self.last_heartbeat = time.monotonic()
+        await self.touch_presence(user_id)
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
@@ -26,10 +30,22 @@ class InboxConsumer(AsyncWebsocketConsumer):
     async def inbox_event(self, event):
         await self.send(text_data=json.dumps(event["data"]))
 
+    async def receive(self, text_data=None, bytes_data=None):
+        if text_data != '{"type":"heartbeat"}' or not hasattr(self, "room_group_name"):
+            return
+        now = time.monotonic()
+        if now - self.last_heartbeat >= 20:
+            self.last_heartbeat = now
+            await self.touch_presence(self.user_id)
+
     @database_sync_to_async
     def active_user_id(self):
         user = self.scope["user"]
         return user.pk if user.is_authenticated and user.is_active else None
+
+    @database_sync_to_async
+    def touch_presence(self, user_id):
+        Profile.objects.filter(user_id=user_id).update(last_seen=timezone.now())
 
 
 class PrivateChatConsumer(AsyncWebsocketConsumer):

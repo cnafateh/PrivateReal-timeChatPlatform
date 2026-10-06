@@ -1,10 +1,12 @@
 import hashlib
 import uuid
+from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import F, Q
 from django.urls import reverse
+from django.utils import timezone
 
 
 def attachment_path(instance, filename):
@@ -85,6 +87,11 @@ class Profile(models.Model):
     phone = models.CharField(max_length=16, blank=True)
     show_phone = models.BooleanField(default=False)
     use_gravatar = models.BooleanField(default=True)
+    last_seen = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def is_online(self):
+        return bool(self.last_seen and self.last_seen >= timezone.now() - timedelta(seconds=75))
 
     @property
     def display_name(self):

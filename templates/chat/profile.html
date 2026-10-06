@@ -8,6 +8,7 @@
         <section class="profile-card">
             {% include 'chat/avatar.html' with person=profile.user size='large' %}
             <h2 dir="auto">{{ profile.display_name }}</h2><p class="muted">@{{ profile.user.username }}</p>
+            <p class="presence-label">{% if profile.is_online %}<span class="presence-dot"></span>Online{% elif profile.last_seen %}Last seen {{ profile.last_seen|date:'M j, Y H:i' }}{% else %}Last seen unavailable{% endif %}</p>
             <dl class="profile-details">
                 {% if profile.user.first_name %}<dt>First name</dt><dd dir="auto">{{ profile.user.first_name }}</dd>{% endif %}
                 {% if profile.user.last_name %}<dt>Last name</dt><dd dir="auto">{{ profile.user.last_name }}</dd>{% endif %}

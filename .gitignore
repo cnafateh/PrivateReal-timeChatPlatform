@@ -38,6 +38,10 @@ db.sqlite3
 *.pem
 *.key
 *.crt
+*.jks
+*.p12
+*.keystore
+/android/signing/
 
 # Testing
 .coverage

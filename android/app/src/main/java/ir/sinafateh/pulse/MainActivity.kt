@@ -27,6 +27,12 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.net.http.SslError
+import android.provider.Settings
+import android.app.AlertDialog
+import androidx.webkit.JavaScriptReplyProxy
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import org.json.JSONObject
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
@@ -49,6 +55,7 @@ class MainActivity : Activity() {
     }
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var microphoneRequest: PermissionRequest? = null
+    private var microphoneReply: JavaScriptReplyProxy? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,6 +77,27 @@ class MainActivity : Activity() {
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(webView, "PulseBridge", setOf("https://$HOST")) {
+                _, message, origin, isMainFrame, reply ->
+                if (!isMainFrame || origin.scheme != "https" || origin.host != HOST) return@addWebMessageListener
+                val payload = try { JSONObject(message.data ?: "") } catch (_: Exception) { return@addWebMessageListener }
+                when (payload.optString("type")) {
+                    "notifications" -> try {
+                        NotificationHandler.process(this, payload.getJSONObject("payload"))
+                    } catch (_: Exception) { }
+                    "microphone" -> {
+                        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                            reply.postMessage("granted")
+                        } else {
+                            microphoneReply?.postMessage("denied")
+                            microphoneReply = reply
+                            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), AUDIO_REQUEST)
+                        }
+                    }
+                }
+            }
+        }
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -101,10 +129,13 @@ class MainActivity : Activity() {
                 CookieManager.getInstance().flush()
                 if (url.startsWith(HOME_URL + "login/")) {
                     getSharedPreferences("unread", Context.MODE_PRIVATE).edit()
-                        .remove("last_message_id").remove("user_id").apply()
+                        .remove("last_message_id").remove("user_id").remove("session_cookie").apply()
                 } else if (url == HOME_URL) {
+                    rememberSessionCookie()
                     WorkManager.getInstance(this@MainActivity).enqueue(
                         OneTimeWorkRequestBuilder<UnreadWorker>().build())
+                } else if (url.startsWith(HOME_URL)) {
+                    rememberSessionCookie()
                 }
             }
         }
@@ -129,7 +160,7 @@ class MainActivity : Activity() {
             override fun onPermissionRequest(request: PermissionRequest) {
                 runOnUiThread {
                     if (request.origin.scheme != "https" || request.origin.host != HOST ||
-                        !request.resources.contentEquals(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))) {
+                        !request.resources.contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
                         request.deny()
                     } else if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
                         request.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
@@ -192,11 +223,31 @@ class MainActivity : Activity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == AUDIO_REQUEST) {
+            val granted = grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED
+            microphoneReply?.postMessage(if (granted) "granted" else "denied")
+            microphoneReply = null
             val request = microphoneRequest
             microphoneRequest = null
-            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            if (granted) {
                 request?.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
             } else request?.deny()
+        } else if (requestCode == NOTIFICATION_REQUEST) {
+            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+                WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<UnreadWorker>().build())
+            } else {
+                val prefs = getSharedPreferences("unread", Context.MODE_PRIVATE)
+                if (!prefs.getBoolean("notification_help_shown", false)) {
+                    prefs.edit().putBoolean("notification_help_shown", true).apply()
+                    AlertDialog.Builder(this)
+                        .setMessage("Allow notifications for Pulse in Android settings to receive message alerts.")
+                        .setPositiveButton("Open settings") { _, _ ->
+                            startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName))
+                        }
+                        .setNegativeButton("Later", null)
+                        .show()
+                }
+            }
         }
     }
 
@@ -211,6 +262,7 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         foregroundHandler.removeCallbacks(foregroundCheck)
+        rememberSessionCookie()
         CookieManager.getInstance().flush()
         super.onPause()
     }
@@ -219,6 +271,12 @@ class MainActivity : Activity() {
         super.onResume()
         foregroundHandler.removeCallbacks(foregroundCheck)
         foregroundHandler.post(foregroundCheck)
+    }
+
+    private fun rememberSessionCookie() {
+        val cookie = CookieManager.getInstance().getCookie(HOME_URL)
+        if (!cookie.isNullOrBlank()) getSharedPreferences("unread", Context.MODE_PRIVATE)
+            .edit().putString("session_cookie", cookie).apply()
     }
 
     companion object {

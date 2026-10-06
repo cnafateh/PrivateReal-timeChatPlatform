@@ -118,8 +118,26 @@ class BrowserTests(StaticLiveServerTestCase):
             expect(page.locator(".message-text").last).to_have_text("First line\nSecond line")
             expect(composer).to_be_focused()
             expect(composer).to_have_value("")
+            self.assertTrue(page.locator('#chat-messages').evaluate(
+                '(el) => el.scrollHeight - el.scrollTop - el.clientHeight < 3'))
         finally:
             context.close()
+
+    def test_reply_actions_open_on_hold_without_shifting_bubbles(self):
+        from playwright.sync_api import expect
+        page = self.page
+        bubble = page.locator('.message-row.other .message-bubble').last
+        bounds = bubble.bounding_box()
+        page.mouse.move(bounds['x'] + 20, bounds['y'] + 20)
+        page.mouse.down()
+        page.wait_for_timeout(550)
+        page.mouse.up()
+        expect(page.locator('.message-actions:visible')).to_have_count(1)
+        page.get_by_role('button', name='Reply', exact=True).click()
+        expect(page.locator('#reply-preview')).to_be_visible()
+        expect(page.locator('.reply-button')).to_have_count(0)
+        self.assertEqual(page.locator('.date-divider').first.evaluate(
+            '(el) => getComputedStyle(el).position'), 'relative')
 
     def test_voice_record_preview_and_send(self):
         from playwright.sync_api import expect

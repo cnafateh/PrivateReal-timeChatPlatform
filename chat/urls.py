@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/chats/<uuid:chat_id>/read/", views.mark_read, name="mark_read"),
     path("api/mobile/unread/", views.mobile_unread, name="mobile_unread"),
     path("api/inbox/", views.inbox_updates, name="inbox_updates"),
+    path("api/presence/<uuid:public_id>/", views.presence, name="presence"),
     path("profile/edit/", views.edit_profile, name="edit_profile"),
     path("people/<uuid:public_id>/", views.profile_detail, name="profile_detail"),
     path("people/<uuid:public_id>/avatar/", views.profile_avatar, name="profile_avatar"),

@@ -93,6 +93,7 @@ def private_chat(request, user_id):
                         "historyUrl": reverse("message_history", args=[chat.public_id]),
                         "sendUrl": reverse("send_message", args=[chat.public_id]),
                         "readUrl": reverse("mark_read", args=[chat.public_id]),
+                        "presenceUrl": reverse("presence", args=[other_user.profile.public_id]),
                         "initial": initial, "hasMore": len(recent) > 50},
     })
 
@@ -217,6 +218,16 @@ def mobile_unread(request):
          "sender_profile_id": str(message.sender.profile.public_id)}
         for message in reversed(received)
     ], "user_id": str(request.user.profile.public_id)})
+
+
+@login_required
+@require_GET
+def presence(request, public_id):
+    profile = get_object_or_404(Profile, public_id=public_id, user__is_active=True)
+    response = JsonResponse({"online": profile.is_online,
+                             "last_seen": profile.last_seen.isoformat() if profile.last_seen else None})
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @login_required

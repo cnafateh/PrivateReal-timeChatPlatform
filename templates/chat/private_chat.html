@@ -9,7 +9,7 @@
             <div class="conversation-meta">
                 <a href="{% url 'inbox' %}" class="icon-button mobile-back" aria-label="Back to conversations">←</a>
                 <a href="{% url 'profile_detail' other_user.profile.public_id %}" aria-label="View profile">{% include "chat/avatar.html" with person=other_user size="small" %}</a>
-                <div class="conversation-user"><h1><a href="{% url 'profile_detail' other_user.profile.public_id %}">{{ other_user.profile.display_name }}</a></h1><p id="connection-status" role="status">Connecting…</p></div>
+                <div class="conversation-user"><h1><a href="{% url 'profile_detail' other_user.profile.public_id %}">{{ other_user.profile.display_name }}</a></h1><p id="presence-status" role="status">Checking activity…</p><p id="connection-status" role="status">Connecting…</p></div>
             </div>
 
         </header>
