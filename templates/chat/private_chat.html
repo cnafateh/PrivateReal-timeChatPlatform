@@ -21,6 +21,10 @@
         <p id="typing-status" class="typing-status" role="status"></p>
         <footer class="composer-area">
             <p id="chat-error" class="chat-error" role="alert" hidden></p>
+            <div id="reply-preview" class="reply-preview" hidden>
+                <div><strong id="reply-sender"></strong><span id="reply-text"></span></div>
+                <button id="cancel-reply" type="button" class="quiet-button" aria-label="Cancel reply">✕</button>
+            </div>
             <div id="attachment-preview" class="attachment-preview" hidden>
                 <span id="attachment-name"></span><audio id="voice-preview" controls hidden></audio>
                 <button id="remove-attachment" type="button" class="quiet-button">Remove</button>

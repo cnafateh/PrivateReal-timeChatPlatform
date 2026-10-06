@@ -16,7 +16,7 @@ Text drafts live in session storage, scoped to the user, conversation and browse
 ## Data model
 
 - `PrivateChat`: a random public UUID, two ordered user foreign keys, one unique pair and a creation time.
-- `Message`: a random public UUID, sender, receiver, content, timestamp, read flag, kind, optional file and metadata, optional client UUID.
+- `Message`: a random public UUID, sender, receiver, content, timestamp, read flag, kind, optional file and metadata, optional client UUID and optional reply reference to a message in the same conversation.
 - `Profile`: a one-to-one user record with a random public UUID, uploaded avatar, phone and contact/avatar preferences. Names and email remain on Django User.
 - Indexes cover conversation cursor queries and recipient unread lookups.
 - The sender/client UUID pair is unique. A UUID reused in another conversation returns HTTP 409.
@@ -36,7 +36,7 @@ All chat endpoints require a session. URL path identifiers are random UUIDv4 val
 | GET | `/api/chats/<chat_uuid>/messages/` | Latest page of history |
 | GET | `/api/chats/<chat_uuid>/messages/?before=<id>` | Earlier page |
 | GET | `/api/chats/<chat_uuid>/messages/?after=<id>` | Catch-up page, ascending |
-| POST | `/api/chats/<chat_uuid>/send/` | Multipart `message`, `client_id`, optional `file`, optional `kind=voice` |
+| POST | `/api/chats/<chat_uuid>/send/` | Multipart `message`, `client_id`, optional `file`, optional `kind=voice`, optional `reply_to=<message_id>` |
 | POST | `/api/chats/<chat_uuid>/read/` | Acknowledge `through=<message_id>` |
 | GET | `/attachments/<message_uuid>/` | Member-only file or inline media |
 | GET | `/attachments/<message_uuid>/?download=1` | Force file download |
@@ -53,7 +53,7 @@ Connect to `/ws/chat/private/<chat_uuid>/`. Session authentication and the allow
 
 Events are `message`, `read` and `typing`. Send `{type: "typing"}` to announce typing; server-side throttling limits these events to one every two seconds per connection. The legacy `{message: "text"}` command still persists and broadcasts text, but HTTP sending provides retry-safe UUIDs and attachment support.
 
-Message payloads contain `id`, `sender_id`, `sender`, `message`, `timestamp`, `kind`, `is_read`, `client_id`, `name`, `size` and a protected `attachment_url` when present. User text is rendered with DOM `textContent`, never interpolated into HTML.
+Message payloads contain `id`, `sender_id`, `sender`, `message`, `timestamp`, `kind`, `is_read`, `client_id`, `name`, `size`, a `reply_to` summary when present and a protected `attachment_url` when present. Reply targets are accepted only from the same conversation. User text is rendered with DOM `textContent`, never interpolated into HTML.
 
 ## Upload trust boundary
 

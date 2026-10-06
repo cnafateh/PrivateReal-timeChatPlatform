@@ -113,6 +113,23 @@ class ChatTests(TestCase):
         response = self.client.post(reverse("send_message", args=[other.public_id]), {"message":"other", "client_id":client_id})
         self.assertEqual(response.status_code, 409)
 
+    def test_reply_in_message_and_history(self):
+        original = self.message(content="Original")
+        response = self.send(message="Answer", reply_to=original.pk)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["reply_to"], {
+            "id": original.pk, "sender": "alice", "message": "Original", "kind": "text", "name": ""})
+        self.assertEqual(Message.objects.get(pk=response.json()["id"]).reply_to, original)
+        history = self.client.get(reverse("message_history", args=[self.chat.public_id])).json()["messages"]
+        self.assertEqual(history[-1]["reply_to"]["id"], original.pk)
+
+    def test_reply_cannot_target_another_conversation(self):
+        other_chat = PrivateChat.get_or_create_chat(self.alice, self.eve)
+        outside = Message.objects.create(chat=other_chat, sender=self.alice, receiver=self.eve, content="Private")
+        for target in [outside.pk, "invalid", 999999]:
+            self.assertEqual(self.send(message="Answer", reply_to=target).status_code, 400)
+        self.assertEqual(self.chat.messages.count(), 0)
+
     def test_broadcast_failure_does_not_lose_message(self):
         with patch("chat.services.get_channel_layer", side_effect=RuntimeError("unavailable")), self.assertLogs("chat.services", level="ERROR"):
             response = self.send(message="Still saved")

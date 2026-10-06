@@ -7,7 +7,7 @@
     const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
     const limit = 5 * 1024 * 1024;
     let socket, retry = 0, reconnectTimer, syncing = false, sending = false, closed = false;
-    let selectedFile = null, selectedKind = 'file', previewUrl, pendingId, pendingFingerprint;
+    let selectedFile = null, selectedKind = 'file', previewUrl, pendingId, pendingFingerprint, replyTarget = null;
     let recorder, recordingStream, recordingTimer, recordingSeconds = 0, typingTimer, readTimer;
     let lastTyping = 0, readThrough = 0;
     function messageId() {
@@ -55,6 +55,15 @@
             status.classList.toggle('read', data.is_read);
         }
     }
+    function replySummary(data) { return data.message || data.name || (data.kind === 'voice' ? 'Voice message' : 'Attachment'); }
+    function clearReply() { replyTarget = null; $('reply-preview').hidden = true; }
+    function chooseReply(data) {
+        replyTarget = data;
+        $('reply-sender').textContent = data.sender;
+        $('reply-text').textContent = replySummary(data).slice(0, 160);
+        $('reply-preview').hidden = false;
+        input.focus();
+    }
     function add(data) {
         if (records.has(data.id)) {
             data.is_read = data.is_read || records.get(data.id).is_read;
@@ -66,6 +75,16 @@
         const row = node('article', `message-row ${own ? 'own' : 'other'}`);
         row.dataset.messageId = data.id;
         const bubble = node('div', 'message-bubble');
+        if (data.reply_to) {
+            const quoted = node('button', 'quoted-message'); quoted.type = 'button';
+            quoted.append(node('strong', '', data.reply_to.sender));
+            quoted.append(node('span', '', replySummary(data.reply_to)));
+            quoted.addEventListener('click', () => {
+                const original = rows.get(data.reply_to.id);
+                if (original) { original.scrollIntoView({behavior:'smooth', block:'center'}); original.classList.add('reply-highlight'); setTimeout(() => original.classList.remove('reply-highlight'), 1800); }
+            });
+            bubble.append(quoted);
+        }
         if (data.attachment_url) {
             if (data.kind === 'image') {
                 const link = node('a'); link.href = data.attachment_url; link.target = '_blank'; link.rel = 'noopener';
@@ -86,7 +105,11 @@
         const time = node('time', '', stamp.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
         time.dateTime = data.timestamp; time.title = stamp.toLocaleString(); meta.append(time);
         if (own) meta.append(node('span', 'message-status'));
-        bubble.append(meta); row.append(bubble); rows.set(data.id, row);
+        bubble.append(meta); row.append(bubble);
+        const replyButton = node('button', 'reply-button', '↩'); replyButton.type = 'button';
+        replyButton.title = 'Reply'; replyButton.setAttribute('aria-label', `Reply to ${data.sender}`);
+        replyButton.addEventListener('click', () => chooseReply(data)); row.append(replyButton);
+        rows.set(data.id, row);
         const next = [...rows.keys()].filter(id => id > data.id).sort((a, b) => a - b)[0];
         list.insertBefore(row, next ? rows.get(next) : null); receipt(row, data);
     }
@@ -179,21 +202,22 @@
     }
     function setBusy(value) {
         sending = value;
-        [send, input, $('attach-button'), $('voice-button'), $('remove-attachment')].forEach(el => { el.disabled = value; });
+        [send, input, $('attach-button'), $('voice-button'), $('remove-attachment'), $('cancel-reply')].forEach(el => { el.disabled = value; });
     }
     async function submit(event) {
         event.preventDefault();
         if (sending || (recorder && recorder.state === 'recording')) return;
         const text = input.value.trim();
         if (!text && !selectedFile) return;
-        const fingerprint = JSON.stringify([text, selectedFile?.name, selectedFile?.size, selectedFile?.lastModified]);
+        const fingerprint = JSON.stringify([text, selectedFile?.name, selectedFile?.size, selectedFile?.lastModified, replyTarget?.id]);
         if (fingerprint !== pendingFingerprint) { pendingId = messageId(); pendingFingerprint = fingerprint; }
         const body = new FormData(); body.set('message', text); body.set('client_id', pendingId);
+        if (replyTarget) body.set('reply_to', replyTarget.id);
         if (selectedFile) { body.set('file', selectedFile); body.set('kind', selectedKind); }
         setBusy(true); error();
         try {
             const data = await request(config.sendUrl, {method:'POST', body}); merge([data], true);
-            input.value = ''; input.style.height = ''; clearFile(); pendingFingerprint = null;
+            input.value = ''; input.style.height = ''; clearFile(); clearReply(); pendingFingerprint = null;
             try { sessionStorage.removeItem(`pulse-draft-${config.userId}-${config.chatId}`); } catch (_) { /* Storage is optional. */ }
         } catch (exc) { error(`${exc.message} Your message is kept here for retry.`); }
         finally { setBusy(false); input.focus(); }
@@ -253,6 +277,7 @@
     $('attach-button').addEventListener('click', () => $('file-input').click());
     $('file-input').addEventListener('change', event => chooseFile(event.target.files[0]));
     $('remove-attachment').addEventListener('click', clearFile);
+    $('cancel-reply').addEventListener('click', clearReply);
     $('voice-button').addEventListener('click', recordVoice);
     $('jump-latest').addEventListener('click', () => { bottom(); scheduleRead(); });
     list.addEventListener('scroll', () => { if (nearBottom()) $('jump-latest').hidden = true; scheduleRead(); });

@@ -3321,3 +3321,45 @@ svg {
     }
 
 }
+
+.reply-button {
+    align-self: center;
+    margin: 0 6px;
+    padding: 8px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    opacity: .65;
+}
+.message-row:hover .reply-button, .reply-button:focus-visible { opacity: 1; color: var(--primary); }
+.quoted-message {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    margin-bottom: 7px;
+    padding: 5px 8px;
+    border: 0;
+    border-left: 3px solid currentColor;
+    border-radius: 4px;
+    background: rgba(127, 127, 127, .15);
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.quoted-message span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 350px; }
+.reply-highlight .message-bubble { outline: 2px solid var(--primary); }
+.reply-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border-left: 3px solid var(--primary);
+    border-radius: 6px;
+    background: rgba(127, 127, 127, .1);
+}
+.reply-preview[hidden] { display: none; }
+.reply-preview div { display: flex; flex-direction: column; min-width: 0; }
+.reply-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

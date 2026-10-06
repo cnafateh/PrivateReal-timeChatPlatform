@@ -13,6 +13,7 @@ MAX_MESSAGE_LENGTH = 4000
 
 def serialize_message(message):
     stamp = timezone.localtime(message.timestamp)
+    reply = message.reply_to
     return {
         "id": message.pk, "message": message.content,
         "sender": message.sender.username, "sender_id": str(message.sender.profile.public_id),
@@ -20,6 +21,13 @@ def serialize_message(message):
         "kind": message.kind, "name": message.original_name,
         "size": message.file_size, "client_id": str(message.client_id) if message.client_id else None,
         "attachment_url": reverse("attachment", args=[message.public_id]) if message.attachment else None,
+        "reply_to": {
+            "id": reply.pk,
+            "sender": reply.sender.username,
+            "message": reply.content[:160],
+            "kind": reply.kind,
+            "name": reply.original_name,
+        } if reply else None,
     }
 
 

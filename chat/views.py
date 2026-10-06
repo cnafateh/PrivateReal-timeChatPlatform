@@ -77,7 +77,7 @@ def private_chat(request, user_id):
     if other_user == request.user:
         return redirect("inbox")
     chat = PrivateChat.get_or_create_chat(request.user, other_user)
-    recent = list(chat.messages.select_related("sender__profile").order_by("-id")[:51])
+    recent = list(chat.messages.select_related("sender__profile", "reply_to__sender").order_by("-id")[:51])
     initial = [serialize_message(m) for m in reversed(recent[:50])]
     return render(request, "chat/private_chat.html", {
         "chat": chat, "other_user": other_user, "chats": conversations(request.user),
@@ -107,7 +107,7 @@ def member_chat(request, chat_id):
 @require_GET
 def message_history(request, chat_id):
     chat = member_chat(request, chat_id)
-    query = chat.messages.select_related("sender__profile")
+    query = chat.messages.select_related("sender__profile", "reply_to__sender")
     try:
         before = int(request.GET.get("before", 0))
         after = int(request.GET.get("after", 0))
@@ -136,11 +136,21 @@ def send_message(request, chat_id):
         client_id = uuid.UUID(request.POST.get("client_id", ""))
     except (ValueError, TypeError, AttributeError):
         return JsonResponse({"error": "A valid client_id is required."}, status=400)
-    existing = Message.objects.filter(sender=request.user, client_id=client_id).select_related("sender__profile").first()
+    existing = Message.objects.filter(sender=request.user, client_id=client_id).select_related(
+        "sender__profile", "reply_to__sender").first()
     if existing:
         if existing.chat_id != chat.pk:
             return JsonResponse({"error": "Message identifier already used."}, status=409)
         return JsonResponse(serialize_message(existing))
+    reply_to = None
+    if request.POST.get("reply_to"):
+        try:
+            reply_id = int(request.POST["reply_to"])
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Invalid reply target."}, status=400)
+        reply_to = chat.messages.select_related("sender").filter(pk=reply_id).first()
+        if reply_to is None:
+            return JsonResponse({"error": "Invalid reply target."}, status=400)
     if len(content) > MAX_MESSAGE_LENGTH or not (content or upload):
         return JsonResponse({"error": "Send text or a file; text is limited to 4000 characters."}, status=400)
     metadata = {}
@@ -150,7 +160,7 @@ def send_message(request, chat_id):
         except ValueError as exc:
             return JsonResponse({"error": str(exc)}, status=400)
     message = Message(chat=chat, sender=request.user, receiver=chat.get_other_user(request.user),
-                      content=content, client_id=client_id, **metadata)
+                      content=content, client_id=client_id, reply_to=reply_to, **metadata)
     try:
         with transaction.atomic():
             if upload:
@@ -160,7 +170,8 @@ def send_message(request, chat_id):
         if message.attachment:
             message.attachment.delete(save=False)
         if isinstance(exc, IntegrityError):
-            existing = Message.objects.filter(sender=request.user, client_id=client_id, chat=chat).select_related("sender__profile").first()
+            existing = Message.objects.filter(sender=request.user, client_id=client_id, chat=chat).select_related(
+                "sender__profile", "reply_to__sender").first()
             if existing:
                 return JsonResponse(serialize_message(existing))
         raise
