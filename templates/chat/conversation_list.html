@@ -1,0 +1,16 @@
+<nav class="conversation-list" aria-label="Conversations">
+    {% for item in chats %}
+    <a href="{% url 'private_chat' item.other_user.profile.public_id %}" class="chat-row {% if chat.pk == item.chat.pk %}active{% endif %}">
+        {% include "chat/avatar.html" with person=item.other_user %}
+        <div class="chat-copy">
+            <div class="chat-title-line">
+                <span class="chat-title">{{ item.other_user.profile.display_name }}</span>
+                {% if item.last_message %}<time class="chat-time" datetime="{{ item.last_message.timestamp|date:'c' }}" title="{{ item.last_message.timestamp|date:'Y-m-d H:i' }}">{{ item.last_message.timestamp|date:'M j' }}</time>{% endif %}
+            </div>
+            <div class="chat-title-line"><span class="chat-preview">{% if item.last_message %}{{ item.last_message.preview|truncatechars:50 }}{% else %}Start a conversation{% endif %}</span>
+                {% if item.unread_count %}<span class="badge" aria-label="{{ item.unread_count }} unread messages">{{ item.unread_count }}</span>{% endif %}
+            </div>
+        </div>
+    </a>
+    {% empty %}<div class="empty-chat"><h2>No conversations</h2><p>Search for a username to start a chat.</p></div>{% endfor %}
+</nav>

@@ -10,6 +10,12 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.graphics.Color
+import android.view.ViewGroup
+import android.view.WindowInsets
+import android.widget.FrameLayout
 import android.webkit.CookieManager
 import android.webkit.DownloadListener
 import android.webkit.PermissionRequest
@@ -23,6 +29,7 @@ import android.webkit.WebViewClient
 import android.net.http.SslError
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.OneTimeWorkRequestBuilder
@@ -31,13 +38,35 @@ import java.util.concurrent.TimeUnit
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private val foregroundHandler = Handler(Looper.getMainLooper())
+    private val foregroundCheck = object : Runnable {
+        override fun run() {
+            WorkManager.getInstance(this@MainActivity).enqueueUniqueWork(
+                "foreground-unread-check", ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<UnreadWorker>().build())
+            foregroundHandler.postDelayed(this, 15_000)
+        }
+    }
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var microphoneRequest: PermissionRequest? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         webView = WebView(this)
-        setContentView(webView)
+        val container = FrameLayout(this).apply {
+            setBackgroundColor(Color.rgb(18, 22, 32))
+            addView(webView, FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            if (Build.VERSION.SDK_INT >= 35) {
+                setOnApplyWindowInsetsListener { view, insets ->
+                    val bars = insets.getInsets(
+                        WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout() or WindowInsets.Type.ime())
+                    view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+                    insets
+                }
+            }
+        }
+        setContentView(container)
         WebView.setWebContentsDebuggingEnabled(BuildConfig.DEBUG)
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, false)
@@ -71,7 +100,8 @@ class MainActivity : Activity() {
             override fun onPageFinished(view: WebView, url: String) {
                 CookieManager.getInstance().flush()
                 if (url.startsWith(HOME_URL + "login/")) {
-                    getSharedPreferences("unread", Context.MODE_PRIVATE).edit().remove("last_message_id").apply()
+                    getSharedPreferences("unread", Context.MODE_PRIVATE).edit()
+                        .remove("last_message_id").remove("user_id").apply()
                 } else if (url == HOME_URL) {
                     WorkManager.getInstance(this@MainActivity).enqueue(
                         OneTimeWorkRequestBuilder<UnreadWorker>().build())
@@ -180,8 +210,15 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        foregroundHandler.removeCallbacks(foregroundCheck)
         CookieManager.getInstance().flush()
         super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        foregroundHandler.removeCallbacks(foregroundCheck)
+        foregroundHandler.post(foregroundCheck)
     }
 
     companion object {

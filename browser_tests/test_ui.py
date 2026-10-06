@@ -98,6 +98,29 @@ class BrowserTests(StaticLiveServerTestCase):
         expect(self.page.locator('#chat-error')).to_be_visible()
         self.assertEqual(self.errors, [])
 
+    def test_mobile_newline_and_send_keeps_composer_focused(self):
+        from playwright.sync_api import expect
+        context = self.browser.new_context(viewport={"width": 390, "height": 844},
+                                           is_mobile=True, has_touch=True)
+        try:
+            page = context.new_page()
+            page.goto(f"{self.live_server_url}/login/")
+            page.get_by_label("Username", exact=True).fill("alice")
+            page.get_by_label("Password", exact=True).fill("browser-password")
+            page.get_by_role("button", name="Sign in", exact=True).click()
+            page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
+            composer = page.get_by_role("textbox", name="Message", exact=True)
+            composer.fill("First line")
+            composer.press("Enter")
+            composer.type("Second line")
+            expect(composer).to_have_value("First line\nSecond line")
+            page.get_by_role("button", name="Send message", exact=True).click()
+            expect(page.locator(".message-text").last).to_have_text("First line\nSecond line")
+            expect(composer).to_be_focused()
+            expect(composer).to_have_value("")
+        finally:
+            context.close()
+
     def test_voice_record_preview_and_send(self):
         from playwright.sync_api import expect
         page = self.page

@@ -18,17 +18,18 @@ Without signing secrets, a tagged GitHub Release is marked as a preview and cont
 
 ## Notifications
 
-The app checks the authenticated user's unread messages with WorkManager while it is in the background. On Android 13 and newer the user must allow notifications. An initial check runs after opening the inbox, then Android schedules checks at intervals of at least 15 minutes. Battery management may delay checks further. A notification opens the sender's conversation. Notifications show the sender and a short preview; lock-screen content is private.
+The app checks received messages about every 15 seconds while it is open. In the background, WorkManager schedules checks at intervals of at least 15 minutes; Android battery management may delay them further. On Android 13 and newer the user must allow notifications in system settings. A notification opens the sender's conversation. Notifications show the sender and a short preview; lock-screen content is private. The first check after signing in records the newest received message and alerts only for messages that are still unread, avoiding a flood of old notifications. Later checks include newly received messages even if they were read before the check.
 
-This does not provide instant push delivery while the app is closed. Instant push would require a push provider, server-side device token registration and delivery, and deployment credentials. The live WebSocket chat remains immediate while the conversation is open.
+This does not provide instant push delivery while the app is closed. Instant push would require a push provider, server-side device token registration and delivery, and deployment credentials. The chat view and conversation list use WebSockets for immediate updates while a page is open. They also refresh after reconnecting or returning to the app.
 
 ## Server endpoint
 
-`GET /api/mobile/unread/` returns the last 50 unread messages for the signed-in user, with conversation and sender profile UUIDs. It uses the existing Django session cookie and never exposes another user's unread messages. An expired session redirects to login; the Android worker ignores it. The endpoint is intended for notification checks, not as a replacement for the full history API.
+`GET /api/mobile/unread/` returns the last 50 received messages for the signed-in user, including their read state, conversation and sender profile UUIDs, and the current user's public identifier. It uses the existing Django session cookie and never exposes another user's messages. An expired session redirects to login; the Android worker ignores it. The endpoint is intended for notification checks, not as a replacement for the full history API. `GET /api/inbox/` returns the authenticated user's rendered conversation list for WebSocket catch-up and polling fallback.
 
 ## Operational notes
 
 - The application requires HTTPS and access to the deployed server. The WebView and background worker use the same session cookies.
+- Android 15 and newer draw app content behind system bars by default. The native container applies status, cutout, navigation and keyboard insets so the chat stays visible and usable.
 - Voice recording needs microphone permission; choosing files uses the Android file picker without broad storage permission.
 - Downloaded attachments go to the device's Downloads folder. Users should treat them as local copies of private media.
 - If the deployment hostname changes, update `MainActivity.HOST`, `HOME_URL` and the app-link host in `AndroidManifest.xml`, then build a new APK.
