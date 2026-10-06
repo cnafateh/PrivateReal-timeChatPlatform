@@ -17,6 +17,7 @@ A self-hosted, real-time private messenger built with Django and Channels.
 - Persistent light/dark theme, with the operating-system preference as the default.
 - Read receipts, typing indicators, earlier-message pagination and automatic reconnection.
 - Reply to messages with a quoted preview in the conversation.
+- Long-press a message to reply or copy its text; see online and last-seen status for other users.
 - Recovery of missed messages through periodic history synchronization; repeat requests do not duplicate messages.
 - Per-conversation text drafts in the current browser tab, multiline text, bidirectional message text and responsive layouts.
 - Administration with image/audio previews, protected file downloads and combined participant, sender, recipient, attachment, type, date and read-state filters.
@@ -84,7 +85,7 @@ Only conversation members can retrieve attachments. Media files are never publis
 
 Messages and files are stored on your server. **This is not end-to-end encryption**: authorized server operators can access stored content. File downloads are not malware-scanned. Audio container detection does not validate every codec or guarantee playback in every browser. Mobile Safari and Chromium may select different recording formats.
 
-Voice recording needs microphone permission and HTTPS, except on localhost. File selection remains available if recording is unsupported. There are no push notifications while the page is closed.
+Voice recording needs microphone permission and HTTPS, except on localhost. File selection remains available if recording is unsupported. The Android app checks for messages periodically while closed; instant push delivery is not available without a push provider.
 
 ## Documentation
 

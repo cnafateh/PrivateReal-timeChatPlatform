@@ -17,7 +17,7 @@ Text drafts live in session storage, scoped to the user, conversation and browse
 
 - `PrivateChat`: a random public UUID, two ordered user foreign keys, one unique pair and a creation time.
 - `Message`: a random public UUID, sender, receiver, content, timestamp, read flag, kind, optional file and metadata, optional client UUID and optional reply reference to a message in the same conversation.
-- `Profile`: a one-to-one user record with a random public UUID, uploaded avatar, phone and contact/avatar preferences. Names and email remain on Django User.
+- `Profile`: a one-to-one user record with a random public UUID, uploaded avatar, phone, contact/avatar preferences and last-seen time. Names and email remain on Django User.
 - Indexes cover conversation cursor queries and recipient unread lookups.
 - The sender/client UUID pair is unique. A UUID reused in another conversation returns HTTP 409.
 
@@ -39,6 +39,7 @@ All chat endpoints require a session. URL path identifiers are random UUIDv4 val
 | POST | `/api/chats/<chat_uuid>/send/` | Multipart `message`, `client_id`, optional `file`, optional `kind=voice`, optional `reply_to=<message_id>` |
 | POST | `/api/chats/<chat_uuid>/read/` | Acknowledge `through=<message_id>` |
 | GET | `/api/mobile/unread/` | Latest unread messages for the signed-in user, used by Android notifications |
+| GET | `/api/presence/<profile_uuid>/` | Online state and last-seen time for an active user |
 | GET | `/attachments/<message_uuid>/` | Member-only file or inline media |
 | GET | `/attachments/<message_uuid>/?download=1` | Force file download |
 | GET/POST | `/profile/edit/` | Edit only the signed-in user’s profile |
@@ -53,6 +54,8 @@ History returns `{messages: [...], has_more: boolean}`. Invalid payloads return 
 Connect to `/ws/chat/private/<chat_uuid>/`. Session authentication and the allowed-host origin validator protect the handshake. Nonmembers are rejected with code 4403.
 
 Events are `message`, `read` and `typing`. Send `{type: "typing"}` to announce typing; server-side throttling limits these events to one every two seconds per connection. The legacy `{message: "text"}` command still persists and broadcasts text, but HTTP sending provides retry-safe UUIDs and attachment support.
+
+Every authenticated page also connects to `/ws/inbox/`. A heartbeat updates the profile's last-seen time no more than once every 20 seconds. A profile counts as online for 75 seconds after its last heartbeat, so a dropped connection eventually becomes offline without requiring a reliable disconnect event. The Android WebView forwards inbox checks to native notification handling while visible; WorkManager uses the saved session cookie for periodic background checks.
 
 Message payloads contain `id`, `sender_id`, `sender`, `message`, `timestamp`, `kind`, `is_read`, `client_id`, `name`, `size`, a `reply_to` summary when present and a protected `attachment_url` when present. Reply targets are accepted only from the same conversation. User text is rendered with DOM `textContent`, never interpolated into HTML.
 
