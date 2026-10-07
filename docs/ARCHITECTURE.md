@@ -40,6 +40,7 @@ All chat endpoints require a session. URL path identifiers are random UUIDv4 val
 | POST | `/api/chats/<chat_uuid>/read/` | Acknowledge `through=<message_id>` |
 | GET | `/api/mobile/unread/` | Latest unread messages for the signed-in user, used by Android notifications |
 | GET | `/api/presence/<profile_uuid>/` | Online state and last-seen time for an active user |
+| POST | `/api/presence/heartbeat/` | CSRF-protected fallback that updates the current user's last-seen time |
 | GET | `/attachments/<message_uuid>/` | Member-only file or inline media |
 | GET | `/attachments/<message_uuid>/?download=1` | Force file download |
 | GET/POST | `/profile/edit/` | Edit only the signed-in user’s profile |
@@ -55,7 +56,7 @@ Connect to `/ws/chat/private/<chat_uuid>/`. Session authentication and the allow
 
 Events are `message`, `read` and `typing`. Send `{type: "typing"}` to announce typing; server-side throttling limits these events to one every two seconds per connection. The legacy `{message: "text"}` command still persists and broadcasts text, but HTTP sending provides retry-safe UUIDs and attachment support.
 
-Every authenticated page also connects to `/ws/inbox/`. A heartbeat updates the profile's last-seen time no more than once every 20 seconds. A profile counts as online for 75 seconds after its last heartbeat, so a dropped connection eventually becomes offline without requiring a reliable disconnect event. The Android WebView forwards inbox checks to native notification handling while visible; WorkManager uses the saved session cookie for periodic background checks.
+Every authenticated page also connects to `/ws/inbox/`. WebSocket and HTTP heartbeats update the profile's last-seen time; a profile counts as online for 75 seconds after the latest heartbeat. The HTTP path keeps presence current when a proxy drops WebSockets. A dropped connection eventually becomes offline without requiring a reliable disconnect event. The Android WebView forwards inbox checks to native notification handling while visible; WorkManager uses the saved session cookie for periodic background checks.
 
 Message payloads contain `id`, `sender_id`, `sender`, `message`, `timestamp`, `kind`, `is_read`, `client_id`, `name`, `size`, a `reply_to` summary when present and a protected `attachment_url` when present. Reply targets are accepted only from the same conversation. User text is rendered with DOM `textContent`, never interpolated into HTML.
 

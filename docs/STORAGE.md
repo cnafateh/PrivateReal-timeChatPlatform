@@ -1,8 +1,39 @@
 # Private media storage and backups
 
+## Production host directory
+
+The supplied [`compose.production.yml`](../compose.production.yml) binds **`/srv/chatapp/media` on the host** to **`/app/media` in the web container**. Django's `MEDIA_ROOT` stays `/app/media`. Attachments and uploaded avatars then survive restarts and image redeploys as long as the host directory remains. The Compose file uses the existing external `database`, `proxy`, and `my_shared_network` networks; Redis remains on its internal network. Configure the database host and credentials in the production `.env`.
+
+A Docker network does not share files. To inspect uploads in an existing File Browser container, give that container a separate read-only mount of `/srv/chatapp/media`, for example `/srv/chatapp/media:/srv/pulse-media:ro`. Restrict File Browser access and never expose this private directory as a public static route: Django's download view checks conversation membership.
+
+### Migrate before enabling the bind mount
+
+Run the following on the server while the old `chatapp` container still exists. First back up the database and current media, and confirm the source contains the expected `avatars/` and `attachments/` files.
+
+```sh
+docker inspect chatapp --format '{{json .Mounts}}'
+docker exec chatapp sh -c 'find /app/media -maxdepth 2 -type f | head'
+PULSE_UID=$(docker exec chatapp id -u)
+PULSE_GID=$(docker exec chatapp id -g)
+docker stop chatapp
+sudo install -d -m 0750 /srv/chatapp/media
+docker cp chatapp:/app/media/. /srv/chatapp/media/
+sudo chown -R "$PULSE_UID:$PULSE_GID" /srv/chatapp/media
+```
+
+Check copied file counts and a sample avatar against the source. If the old container has an empty `/app/media`, inspect earlier containers, old named volumes, and backups before proceeding. A database row cannot recreate missing image bytes. Mounting an empty host directory hides files in the container or volume; it does not migrate them.
+
+```sh
+docker compose -f compose.production.yml config --quiet
+docker compose -f compose.production.yml up -d
+docker inspect chatapp --format '{{json .Mounts}}'
+```
+
+The final inspection must show `/srv/chatapp/media` as source and `/app/media` as destination. Verify an existing avatar and attachment through the app before removing the old container or volume. Retain both database and media backups.
+
 ## Where the files live
 
-The repository's Compose configuration mounts the Docker named volume `media_data` at **`/app/media`**. Django's default `MEDIA_ROOT` resolves to that path inside the image. Message files live under `attachments/<internal-chat-id>/<random-name>`; uploaded profile photos live under `avatars/<profile-uuid>/<random-name>.png`. The database stores storage-relative paths and metadata, not the file contents.
+The repository's local-development Compose configuration mounts the Docker named volume `media_data` at **`/app/media`**. The production example above uses a host bind mount at the same container path. Django's default `MEDIA_ROOT` resolves to that path inside the image. Message files live under `attachments/<internal-chat-id>/<random-name>`; uploaded profile photos live under `avatars/<profile-uuid>/<random-name>.png`. The database stores storage-relative paths and metadata, not the file contents.
 
 A named volume is already stored on the Docker host, outside the container's disposable writable layer. A host bind mount gives an explicit host path; it is not required merely to survive restarts.
 

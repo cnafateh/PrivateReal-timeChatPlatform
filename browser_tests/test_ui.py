@@ -41,8 +41,10 @@ class BrowserTests(StaticLiveServerTestCase):
         self.errors = []
         self.send_responses = []
         self.page.on("pageerror", lambda exc: self.errors.append(str(exc)))
-        self.page.on("response", lambda response: self.send_responses.append(response.status)
-                     if "/send/" in response.url else None)
+        self.page.on("response", lambda response: self.send_responses.append({
+            "status": response.status,
+            "session_cookie_sent": "sessionid=" in response.request.header_value("cookie") if response.request.header_value("cookie") else False,
+        }) if "/send/" in response.url else None)
         self.page.goto(f"{self.live_server_url}/login/")
         self.page.get_by_label("Username", exact=True).fill("alice")
         self.page.get_by_label("Password", exact=True).fill("browser-password")
@@ -115,8 +117,10 @@ class BrowserTests(StaticLiveServerTestCase):
         try:
             page = context.new_page()
             mobile_responses = []
-            page.on("response", lambda response: mobile_responses.append(response.status)
-                    if "/send/" in response.url else None)
+            page.on("response", lambda response: mobile_responses.append({
+                "status": response.status,
+                "session_cookie_sent": "sessionid=" in response.request.header_value("cookie") if response.request.header_value("cookie") else False,
+            }) if "/send/" in response.url else None)
             page.goto(f"{self.live_server_url}/login/")
             page.get_by_label("Username", exact=True).fill("alice")
             page.get_by_label("Password", exact=True).fill("browser-password")

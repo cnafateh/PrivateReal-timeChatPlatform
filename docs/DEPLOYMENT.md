@@ -1,5 +1,19 @@
 # Deployment and operations
 
+This document explains why each production component is present before listing its settings. For an end-to-end tour of a message, start with the [learning guide](GUIDE.md).
+
+## Deploy with the existing external networks
+
+The repository includes [`compose.production.yml`](../compose.production.yml) for a host that already has `database`, `proxy`, and `my_shared_network`. It runs the published `ghcr.io/cnafateh/chatapp:v1.2.0-rc1` image and Redis, and binds `/srv/chatapp/media` to `/app/media`. Your existing database and reverse proxy remain outside this Compose project. The `.env` must name a reachable `DB_HOST`, database credentials, public host and CSRF origin, and production security settings. A network connection alone does not persist or share files; see [media migration](STORAGE.md) before starting this Compose file.
+
+1. Inspect the old container's `/app/media` and take a database/media backup.
+2. Copy media into `/srv/chatapp/media`, set ownership to the container's application UID/GID, and confirm the copy.
+3. Put `compose.production.yml` and the production `.env` in the same server directory. Check `docker compose -f compose.production.yml config --quiet`.
+4. Start the stack and verify the mount, migrations, two-way chat, uploaded avatars, attachments, and WebSocket upgrade through the public HTTPS proxy.
+5. Keep the previous media source until a restore test succeeds. After merging the PR, the `main` workflow publishes the same code as `ghcr.io/cnafateh/chatapp:latest`; change the Compose tag only after that image succeeds.
+
+If the File Browser service needs the files, mount `/srv/chatapp/media` into it read-only. `my_shared_network` is included for network reachability, but does not grant filesystem access.
+
 ## Configuration
 
 | Variable | Meaning |
@@ -34,7 +48,7 @@ The optional existing `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL` and 
 
 ## Persistent storage
 
-Compose uses `postgres_data`, `media_data` and `redis_data`. The image creates `/app/media` before switching to its unprivileged user. Existing bind mounts must be writable by that user. With several application instances, use shared private storage for attachments.
+The local Compose stack uses `postgres_data`, `media_data` and `redis_data`. The production Compose example uses the existing external database, a Redis volume, and a host bind mount for media. The image creates `/app/media` before switching to its unprivileged user. Existing bind mounts must be writable by that user. With several application instances, use shared private storage for attachments.
 
 WhiteNoise serves collected application static assets. Authenticated Django views serve message attachments using `FileResponse`; the current implementation does not implement byte-range seeking. Short recordings can play, but seeking behavior varies by browser.
 

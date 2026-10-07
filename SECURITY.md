@@ -14,3 +14,5 @@ Uploads are untrusted. Generic files always download instead of executing inline
 
 
 Public URL identifiers are random UUIDv4 values, not access tokens. Membership/permission checks remain mandatory even if a UUID is known. Profiles require login; contact fields have separate visibility rules. Gravatar requests disclose a hash of the user's email to Gravatar and may disclose the viewer's network address. Email hashing is for avatar lookup, not credential protection or guaranteed anonymity. Gravatar can be disabled in profile settings.
+
+The Android wrapper accepts native bridge messages only from the app's HTTPS origin and main frame. Keep release signing credentials in private GitHub Actions secrets and a separate offline backup. The production media bind mount contains private files: granting a file browser access to that directory also grants its operators access to those files, even though Django's HTTP permissions remain intact.

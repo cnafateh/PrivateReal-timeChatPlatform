@@ -58,6 +58,8 @@ Open <http://localhost:8080>. Compose starts Django/Daphne, PostgreSQL, Redis an
 
 For public hosting and upgrades, follow [deployment instructions](docs/DEPLOYMENT.md). The provided Compose file binds to localhost; configure your trusted HTTPS proxy before exposing the service.
 
+For a server with external database and proxy networks, use [the production Compose example](compose.production.yml) after following the [media migration guide](docs/STORAGE.md). It keeps uploaded avatars and attachments in `/srv/chatapp/media` on the host. The review image is `ghcr.io/cnafateh/chatapp:v1.2.0-rc1`; `latest` is published from `main` after merge.
+
 ## Tests
 
 ```sh
@@ -89,7 +91,7 @@ Voice recording needs microphone permission and HTTPS, except on localhost. File
 
 ## Documentation
 
-- [Complete application and architecture guide (فارسی)](docs/GUIDE.fa.md)
+- [Learning guide: application flow and architecture](docs/GUIDE.md)
 - [Android app build, installation and notifications](docs/ANDROID.md)
 - [Media persistence, host directories and backups](docs/STORAGE.md)
 - [Deployment, configuration and upgrades](docs/DEPLOYMENT.md)
@@ -113,7 +115,7 @@ The following are planned or possible improvements, not features implemented tod
 - Verified email and phone ownership; password recovery and two-factor authentication.
 - Blocking/reporting users, moderation tools, account quotas and per-account rate limiting.
 - Full-text message search, replies, message editing/deletion with an explicit retention policy.
-- Push notifications and per-conversation notification preferences.
+- Firebase Cloud Messaging or another push provider for immediate background notifications, plus per-conversation notification preferences.
 - Group conversations with role-based membership.
 - Private object storage, malware scanning and audited orphan-file cleanup.
 - Range requests and transcoding for broader voice playback/seek support.

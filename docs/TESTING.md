@@ -22,7 +22,7 @@ Install the development requirements and Chromium, then set `RUN_BROWSER_TESTS=1
 python manage.py test browser_tests --settings=chatapp_project.test_settings
 ```
 
-The browser suite checks day grouping, text/file submission, theme persistence, mobile overflow, oversized file feedback and microphone-denial behavior. Its test server exercises HTTP fallback; separate Channels tests exercise socket delivery. It uses isolated test accounts and does not contact an external deployment.
+The browser suite checks nonoverlapping day labels, hidden long-press reply actions, text/file submission, theme persistence, mobile overflow, oversized file feedback and microphone-denial behavior. Its test server exercises HTTP fallback; separate Channels tests exercise socket delivery. It uses isolated test accounts and does not contact an external deployment.
 
 ## Manual release checks
 
@@ -34,6 +34,8 @@ The browser suite checks day grouping, text/file submission, theme persistence, 
 - Disconnect/reconnect networking and retry a failed upload. Confirm no duplicate message appears.
 - Check desktop and mobile in both themes, keyboard focus, Persian/Arabic text, multiline text and browser zoom.
 - Verify a third account and a logged-out browser cannot download a copied attachment URL.
+- After deploying the server image, open two accounts. Confirm online changes to last seen roughly 75 seconds after one closes, and that reply actions appear only after a long press.
+- On a real Android phone, check the monochrome notification icon, microphone permission, a background alert after the periodic interval, and an in-place update from the previous permanently signed release.
 
 Browser codecs, hardware microphone capture and public proxy configuration need these real-device checks in addition to CI.
 

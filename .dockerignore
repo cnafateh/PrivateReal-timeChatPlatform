@@ -38,6 +38,10 @@ docker-compose.yml
 # Other
 *.md
 .docker
+/android/signing/
+*.jks
+*.p12
+*.keystore
 # Local secrets, test artifacts and private configuration
 .env
 .env.*
