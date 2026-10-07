@@ -109,18 +109,51 @@ jobs:
             test ! -f dist/release/app-release.apk || (adb uninstall ir.sinafateh.pulse && adb install -r dist/release/app-release.apk && adb shell pm path ir.sinafateh.pulse)
 
   release:
-    if: startsWith(github.ref, 'refs/tags/android-v')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/android-v')
     needs: [apk, install-check]
     runs-on: ubuntu-latest
+    concurrency:
+      group: android-release-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
       HAS_RELEASE_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Require permanent signing key
         run: |
           test -n "$HAS_RELEASE_KEY" || { echo 'Configure the four Android signing secrets before publishing a release.'; exit 1; }
+      - name: Resolve and validate release tag
+        id: release_details
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch && "$GITHUB_REF" != refs/heads/main ]]; then
+            echo '::error::Run the manual release from the main branch.'
+            exit 1
+          fi
+          version=$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' android/app/build.gradle.kts)
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]]; then
+            echo '::error::Android versionName is missing or invalid.'
+            exit 1
+          fi
+          tag="android-v$version"
+          if [[ "$GITHUB_EVENT_NAME" != workflow_dispatch && "$GITHUB_REF_NAME" != "$tag" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match Android versionName $version."
+            exit 1
+          fi
+          commit=$(git rev-parse HEAD)
+          if git rev-parse -q --verify "refs/tags/$tag^{commit}" >/dev/null; then
+            tagged_commit=$(git rev-parse "refs/tags/$tag^{commit}")
+            if [[ "$tagged_commit" != "$commit" ]]; then
+              echo "::error::$tag already points to another commit. Increase versionName and versionCode before releasing."
+              exit 1
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
           name: pulse-android-release-apk
@@ -129,7 +162,7 @@ jobs:
         shell: bash
         env:
           REPOSITORY: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.release_details.outputs.tag }}
         run: |
           test -n "$HAS_RELEASE_KEY"
           cp dist/release/app-release.apk "Pulse-$TAG.apk"
@@ -138,5 +171,5 @@ jobs:
           if gh release view "$TAG" --repo "$REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" "$apk" --repo "$REPOSITORY" --clobber
           else
-            gh release create "$TAG" "$apk" --repo "$REPOSITORY" --title "Pulse Android $TAG" --notes-file release-notes.txt
+            gh release create "$TAG" "$apk" --repo "$REPOSITORY" --target "$(git rev-parse HEAD)" --title "Pulse Android $TAG" --notes-file release-notes.txt
           fi
