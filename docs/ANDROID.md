@@ -26,6 +26,10 @@ For the current maintainer, the locally generated key is `android/signing/pulse-
 
 ## Notifications
 
+When a private chat or group is visible in the foreground, a message for that same conversation updates the page without a system notification. Alerts for other conversations still appear. `MainActivity` tracks the visible destination, and `NotificationHandler` compares it with the destination in each server payload before posting an alert. On pause, the visible destination is cleared. The message cursor advances even when an alert is suppressed, so reopening the app does not replay it.
+
+Group notifications open the relevant group directly. The server includes group messages only for current members.
+
 While the app is open, an inbox WebSocket prompts a notification check immediately and a 15-second fallback check uses the authenticated WebView session. The native worker also checks in the foreground. When the app moves to the background it schedules a one-time catch-up check; WorkManager maintains periodic checks at intervals of at least 15 minutes and updates the schedule after an app upgrade. Android battery management may delay or suppress work, especially after force-stop. On Android 13 and newer the user must allow notifications in system settings. A notification opens the sender's conversation. Notifications show the sender and a short preview; lock-screen content is private. The first check after signing in records the newest received message and alerts only for messages that are still unread, avoiding a flood of old notifications. Later checks include newly received messages even if they were read before the check.
 
 This does not provide instant push delivery while the app is closed. Instant push would require a push provider, server-side device token registration and delivery, and deployment credentials. The chat view and conversation list use WebSockets for immediate updates while a page is open. They also refresh after reconnecting or returning to the app.
@@ -34,7 +38,7 @@ To diagnose a missing background alert, first confirm the app is signed in and a
 
 ## Server endpoint
 
-`GET /api/mobile/unread/` returns the last 50 received messages for the signed-in user, including their read state, conversation and sender profile UUIDs, and the current user's public identifier. It uses the existing Django session cookie and never exposes another user's messages. An expired session redirects to login; the Android worker ignores it. The endpoint is intended for notification checks, not as a replacement for the full history API. `GET /api/inbox/` returns the authenticated user's rendered conversation list for WebSocket catch-up and polling fallback.
+`GET /api/mobile/unread/` returns the last 50 received private and group messages for the signed-in user, including their read state, destination path, conversation and sender profile UUIDs, and the current user's public identifier. It uses the existing Django session cookie and never exposes another user's messages. An expired session redirects to login; the Android worker ignores it. The endpoint is intended for notification checks, not as a replacement for the full history API. `GET /api/inbox/` returns the authenticated user's rendered conversation list for WebSocket catch-up and polling fallback.
 
 ## Operational notes
 

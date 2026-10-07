@@ -14,6 +14,12 @@ import org.json.JSONObject
 
 object NotificationHandler {
     private const val CHANNEL_ID = "chat_messages"
+    @Volatile private var activeConversation: String? = null
+
+    fun setActiveConversation(url: String?) {
+        activeConversation = url?.let { Uri.parse(it).path }
+            ?.takeIf { it.startsWith("/chat/") || it.startsWith("/groups/") }
+    }
 
     @Synchronized
     fun process(context: Context, payload: JSONObject) {
@@ -28,7 +34,8 @@ object NotificationHandler {
             val message = messages.getJSONObject(index)
             val id = message.getLong("id")
             if (id > newest) newest = id
-            if (id > lastId && (lastId != 0L || !message.getBoolean("is_read")))
+            if (id > lastId && (lastId != 0L || !message.getBoolean("is_read")) &&
+                message.optString("destination") != activeConversation)
                 pending.add(message)
         }
         if (pending.isNotEmpty() && !canNotify(context)) return
@@ -53,9 +60,11 @@ object NotificationHandler {
         val preview = message.optString("message").ifBlank {
             message.optString("name").ifBlank { "New message" }
         }.take(120)
-        val profileId = message.getString("sender_profile_id")
+        val destination = message.optString("destination")
+            .takeIf { it.startsWith("/chat/") || it.startsWith("/groups/") }
+            ?: "chat/${message.getString("sender_profile_id")}/"
         val intent = Intent(context, MainActivity::class.java).apply {
-            data = Uri.parse(MainActivity.HOME_URL + "chat/$profileId/")
+            data = Uri.parse(MainActivity.HOME_URL + destination.removePrefix("/"))
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         val tap = PendingIntent.getActivity(context, id.toInt(), intent,
