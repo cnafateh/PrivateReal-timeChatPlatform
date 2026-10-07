@@ -24,6 +24,8 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+# Live-server browser requests run in another thread; avoid a second connection to the in-memory session table.
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
