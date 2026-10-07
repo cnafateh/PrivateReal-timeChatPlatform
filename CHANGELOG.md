@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Group conversations and Android alerts
+
+- Let superusers create groups and manage members in Django admin; members can use the existing text, reply, attachment and voice composer.
+- Add member-only group history, files and WebSocket events with independent read cursors and inbox badges.
+- Suppress Android notifications for the private chat or group currently visible in the foreground, while retaining alerts for other conversations.
+
 ### Android delivery and production storage
 
 - Use a monochrome conversation icon for Android status-bar notifications and the website's icon in the application sidebar.

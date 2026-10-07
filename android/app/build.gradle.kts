@@ -11,8 +11,8 @@ android {
         applicationId = "ir.sinafateh.pulse"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.2.0"
+        versionCode = 6
+        versionName = "1.3.0"
     }
 
     val releaseKeyStore = System.getenv("PULSE_KEYSTORE_FILE")

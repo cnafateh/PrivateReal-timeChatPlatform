@@ -1,0 +1,39 @@
+{% extends 'chat/base.html' %}
+{% load static %}
+{% block title %}{{ group.name }} | Pulse{% endblock %}
+{% block content %}
+<div class="app-shell chat-open">
+    {% include 'chat/sidebar.html' %}
+    <main class="main-panel">
+        <header class="topbar"><div class="conversation-meta">
+            <a href="{% url 'inbox' %}" class="icon-button mobile-back" aria-label="Back to conversations">←</a>
+            <span class="avatar group-avatar small" aria-hidden="true">{{ group.name|first|upper }}</span>
+            <div class="conversation-user"><h1>{{ group.name }}</h1><p>{{ member_count }} member{{ member_count|pluralize }}</p><p id="connection-status" role="status">Connecting…</p></div>
+        </div></header>
+        {% if group.description %}<p class="group-description">{{ group.description }}</p>{% endif %}
+        <div class="history-tools"><button id="load-older" type="button" class="quiet-button" hidden>Load earlier messages</button></div>
+        <section id="chat-messages" class="messages" aria-label="Group message history" tabindex="0">
+            <div id="empty-chat" class="empty-chat"><h2>No messages</h2><p>Start the conversation in {{ group.name }}.</p></div>
+        </section>
+        <button id="jump-latest" class="jump-latest" type="button" hidden>New messages ↓</button>
+        <p id="typing-status" class="typing-status" role="status"></p>
+        <footer class="composer-area">
+            <p id="chat-error" class="chat-error" role="alert" hidden></p>
+            <div id="reply-preview" class="reply-preview" hidden><div><strong id="reply-sender"></strong><span id="reply-text"></span></div><button id="cancel-reply" type="button" class="quiet-button" aria-label="Cancel reply">✕</button></div>
+            <div id="attachment-preview" class="attachment-preview" hidden><span id="attachment-name"></span><audio id="voice-preview" controls hidden></audio><button id="remove-attachment" type="button" class="quiet-button">Remove</button></div>
+            <form id="composer" class="composer" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input id="file-input" type="file" hidden>
+                <button id="attach-button" class="icon-button" type="button" title="Attach file or photo (up to 5 MB)" aria-label="Attach file or photo">＋</button>
+                <textarea id="message-input" rows="1" maxlength="4000" enterkeyhint="enter" placeholder="Write a message…" aria-label="Message" dir="auto"></textarea>
+                <button id="voice-button" class="icon-button" type="button" title="Record voice message" aria-label="Record voice message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></button>
+                <button id="send-button" class="send-button" type="submit" title="Send message" aria-label="Send message">↑</button>
+            </form>
+            <div class="composer-hint"><span id="record-status" role="status">Enter to send on desktop · Shift + Enter for a new line · On mobile, Enter adds a line</span><span>Up to 5 MB</span></div>
+        </footer>
+    </main>
+</div>
+{{ chat_config|json_script:'chat-config' }}
+<noscript><p class="chat-error">Enable JavaScript to read and send messages.</p></noscript>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/chat.js' %}" defer></script>{% endblock %}

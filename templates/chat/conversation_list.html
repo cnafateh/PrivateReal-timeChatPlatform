@@ -1,10 +1,10 @@
 <nav class="conversation-list" aria-label="Conversations">
     {% for item in chats %}
-    <a href="{% url 'private_chat' item.other_user.profile.public_id %}" class="chat-row {% if chat.pk == item.chat.pk %}active{% endif %}">
-        {% include "chat/avatar.html" with person=item.other_user %}
+    <a href="{% if item.group %}{% url 'group_chat' item.group.public_id %}{% else %}{% url 'private_chat' item.other_user.profile.public_id %}{% endif %}" class="chat-row {% if group and item.group.pk == group.pk or chat and item.chat.pk == chat.pk %}active{% endif %}">
+        {% if item.group %}<span class="avatar group-avatar" aria-hidden="true">{{ item.group.name|first|upper }}</span>{% else %}{% include "chat/avatar.html" with person=item.other_user %}{% endif %}
         <div class="chat-copy">
             <div class="chat-title-line">
-                <span class="chat-title">{{ item.other_user.profile.display_name }}</span>
+                <span class="chat-title">{% if item.group %}{{ item.group.name }}{% else %}{{ item.other_user.profile.display_name }}{% endif %}</span>
                 {% if item.other_user.profile.is_online %}<span class="presence-dot" title="Online" aria-label="Online"></span>{% endif %}
                 {% if item.last_message %}<time class="chat-time" datetime="{{ item.last_message.timestamp|date:'c' }}" title="{{ item.last_message.timestamp|date:'Y-m-d H:i' }}">{{ item.last_message.timestamp|date:'M j' }}</time>{% endif %}
             </div>

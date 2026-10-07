@@ -10,7 +10,7 @@ python manage.py check --settings=chatapp_project.test_settings
 
 The test settings isolate database and Redis settings from your `.env`, use fast test-only password hashes and disable HTTPS redirects for the local test client. Never run a deployed service with test settings.
 
-Coverage includes authentication, POST-only logout and CSRF enforcement; canonical conversation pairs; authorization for history, sends and private downloads; 5 MiB boundaries; actual-image detection and spoofed files; audio container handling; duplicate-send recovery; history cursors; receipt ownership; safe JSON embedding; query counts; admin pages; WebSocket payload validation and origins; and preservation of legacy messages during migration.
+Coverage includes authentication, POST-only logout and CSRF enforcement; canonical conversation pairs; authorization for history, sends and private downloads; group creation and membership boundaries; 5 MiB boundaries; actual-image detection and spoofed files; audio container handling; duplicate-send recovery; history cursors; independent group read cursors; receipt ownership; safe JSON embedding; query counts; admin pages; WebSocket payload validation and origins; and preservation of legacy messages during migration.
 
 To use PostgreSQL/Redis in tests, provide `TEST_DB_HOST=localhost` and `TEST_REDIS_URL=redis://localhost:6379/0`. The dedicated PostgreSQL service must accept username/password `postgres` and provide a `pulse_test` database. Tests create and destroy their own test database.
 

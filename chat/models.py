@@ -10,7 +10,8 @@ from django.utils import timezone
 
 
 def attachment_path(instance, filename):
-    return f"attachments/{instance.chat_id}/{uuid.uuid4().hex}"
+    destination = f"group-{instance.group_id}" if instance.group_id else f"private-{instance.chat_id}"
+    return f"attachments/{destination}/{uuid.uuid4().hex}"
 
 
 class PrivateChat(models.Model):
@@ -39,6 +40,37 @@ class PrivateChat(models.Model):
         return self.user2 if self.user1_id == current_user.pk else self.user1
 
 
+class GroupChat(models.Model):
+    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=500, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="created_groups")
+    members = models.ManyToManyField(User, through="GroupMembership", related_name="chat_groups")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class GroupMembership(models.Model):
+    group = models.ForeignKey(GroupChat, on_delete=models.CASCADE, related_name="memberships")
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="group_memberships")
+    joined_at = models.DateTimeField(auto_now_add=True)
+    last_read_id = models.PositiveBigIntegerField(default=0)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["group", "user"], name="unique_group_member")]
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and not self.last_read_id:
+            self.last_read_id = (Message.objects.filter(group_id=self.group_id)
+                                 .order_by("-pk").values_list("pk", flat=True).first() or 0)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.user.username} in {self.group.name}"
+
+
 class Message(models.Model):
     class Kind(models.TextChoices):
         TEXT = "text", "Text"
@@ -47,9 +79,10 @@ class Message(models.Model):
         VOICE = "voice", "Voice message"
 
     public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
-    chat = models.ForeignKey(PrivateChat, on_delete=models.CASCADE, related_name="messages")
+    chat = models.ForeignKey(PrivateChat, on_delete=models.CASCADE, related_name="messages", null=True, blank=True)
+    group = models.ForeignKey(GroupChat, on_delete=models.CASCADE, related_name="messages", null=True, blank=True)
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_messages")
-    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_messages")
+    receiver = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_messages", null=True, blank=True)
     reply_to = models.ForeignKey("self", on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name="replies")
     content = models.TextField(blank=True, max_length=4000)
@@ -66,14 +99,18 @@ class Message(models.Model):
         ordering = ["timestamp", "id"]
         indexes = [models.Index(fields=["chat", "id"], name="message_chat_cursor"),
                    models.Index(fields=["receiver", "is_read"], name="message_unread")]
-        constraints = [models.UniqueConstraint(fields=["sender", "client_id"], name="message_client_once")]
+        constraints = [models.UniqueConstraint(fields=["sender", "client_id"], name="message_client_once"),
+                       models.CheckConstraint(condition=(Q(chat__isnull=False, group__isnull=True, receiver__isnull=False) |
+                                                         Q(chat__isnull=True, group__isnull=False, receiver__isnull=True)),
+                                              name="message_one_destination")]
 
     @property
     def preview(self):
         return self.content or self.original_name or self.get_kind_display()
 
     def __str__(self):
-        return f"{self.sender.username} → {self.receiver.username}: {self.preview[:60]}"
+        destination = self.group.name if self.group_id else self.receiver.username
+        return f"{self.sender.username} → {destination}: {self.preview[:60]}"
 
 
 def avatar_path(instance, filename):

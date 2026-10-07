@@ -56,6 +56,7 @@ class MainActivity : Activity() {
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var microphoneRequest: PermissionRequest? = null
     private var microphoneReply: JavaScriptReplyProxy? = null
+    private var foreground = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -126,6 +127,7 @@ class MainActivity : Activity() {
             }
 
             override fun onPageFinished(view: WebView, url: String) {
+                if (foreground) NotificationHandler.setActiveConversation(url)
                 CookieManager.getInstance().flush()
                 if (url.startsWith(HOME_URL + "login/")) {
                     getSharedPreferences("unread", Context.MODE_PRIVATE).edit()
@@ -261,6 +263,8 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        foreground = false
+        NotificationHandler.setActiveConversation(null)
         foregroundHandler.removeCallbacks(foregroundCheck)
         rememberSessionCookie()
         CookieManager.getInstance().flush()
@@ -272,6 +276,8 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        foreground = true
+        NotificationHandler.setActiveConversation(webView.url)
         foregroundHandler.removeCallbacks(foregroundCheck)
         foregroundHandler.post(foregroundCheck)
     }

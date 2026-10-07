@@ -85,6 +85,7 @@
         const row = node('article', `message-row ${own ? 'own' : 'other'}`);
         row.dataset.messageId = data.id;
         const bubble = node('div', 'message-bubble');
+        if (config.groupMode && !own) bubble.append(node('strong', 'group-sender', data.sender));
         if (data.reply_to) {
             const quoted = node('button', 'quoted-message'); quoted.type = 'button';
             quoted.append(node('strong', '', data.reply_to.sender));
@@ -114,7 +115,7 @@
         const meta = node('div', 'message-meta'); const stamp = new Date(data.timestamp);
         const time = node('time', '', stamp.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}));
         time.dateTime = data.timestamp; time.title = stamp.toLocaleString(); meta.append(time);
-        if (own) meta.append(node('span', 'message-status'));
+        if (own && !config.groupMode) meta.append(node('span', 'message-status'));
         bubble.append(meta); row.append(bubble);
         const actions = node('div', 'message-actions'); actions.hidden = true;
         const replyButton = node('button', '', 'Reply'); replyButton.type = 'button';
@@ -169,6 +170,7 @@
         return data;
     }
     async function refreshPresence() {
+        if (config.groupMode) return;
         try {
             const data = await request(config.presenceUrl);
             const label = $('presence-status');
@@ -216,7 +218,7 @@
     function connect() {
         if (closed) return;
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(`${protocol}//${location.host}/ws/chat/private/${config.chatId}/`);
+        socket = new WebSocket(`${protocol}//${location.host}${config.socketUrl}`);
         socket.addEventListener('open', () => {
             retry = 0; $('connection-status').textContent = ''; sync();
         });
