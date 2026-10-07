@@ -4,6 +4,7 @@ from datetime import timedelta
 from unittest import skipUnless
 
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import override_settings
 from django.utils import timezone
@@ -24,6 +25,13 @@ class BrowserTests(StaticLiveServerTestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.settings_override = override_settings(MEDIA_ROOT=self.directory.name)
         self.settings_override.enable()
+        self.client.force_login(self.alice)
+        session_cookie = self.client.cookies[settings.SESSION_COOKIE_NAME].value
+        self.browser_session_cookie = {
+            "name": settings.SESSION_COOKIE_NAME,
+            "value": session_cookie,
+            "url": self.live_server_url,
+        }
         import asyncio
         import sys
         if sys.platform == "win32":
@@ -39,17 +47,8 @@ class BrowserTests(StaticLiveServerTestCase):
         self.browser = self.playwright.chromium.launch(**options)
         self.page = self.browser.new_page()
         self.errors = []
-        self.send_responses = []
         self.page.on("pageerror", lambda exc: self.errors.append(str(exc)))
-        self.page.on("response", lambda response: self.send_responses.append({
-            "status": response.status,
-            "session_cookie_sent": "sessionid=" in response.request.header_value("cookie") if response.request.header_value("cookie") else False,
-        }) if "/send/" in response.url else None)
-        self.page.goto(f"{self.live_server_url}/login/")
-        self.page.get_by_label("Username", exact=True).fill("alice")
-        self.page.get_by_label("Password", exact=True).fill("browser-password")
-        self.page.get_by_role("button", name="Sign in", exact=True).click()
-        self.page.wait_for_url(self.live_server_url + "/")
+        self.page.context.add_cookies([self.browser_session_cookie])
         self.page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
 
     def tearDown(self):
@@ -72,8 +71,7 @@ class BrowserTests(StaticLiveServerTestCase):
         try:
             expect(page.locator('.message-text').last).to_have_text('A new message')
         except AssertionError:
-            self.fail(f"send responses={self.send_responses}, error={page.locator('#chat-error').inner_text()}, "
-                      f"page errors={self.errors}")
+            self.fail(f"send error={page.locator('#chat-error').inner_text()}, page errors={self.errors}")
         page.locator('#file-input').set_input_files({'name':'notes.txt', 'mimeType':'text/plain', 'buffer':b'hello from a file'})
         expect(page.locator('#attachment-name')).to_contain_text('notes.txt')
         page.get_by_role('button', name='Send message', exact=True).click()
@@ -119,13 +117,9 @@ class BrowserTests(StaticLiveServerTestCase):
             mobile_responses = []
             page.on("response", lambda response: mobile_responses.append({
                 "status": response.status,
-                "session_cookie_sent": "sessionid=" in response.request.header_value("cookie") if response.request.header_value("cookie") else False,
+                "session_cookie_sent": f"{settings.SESSION_COOKIE_NAME}=" in (response.request.header_value("cookie") or ""),
             }) if "/send/" in response.url else None)
-            page.goto(f"{self.live_server_url}/login/")
-            page.get_by_label("Username", exact=True).fill("alice")
-            page.get_by_label("Password", exact=True).fill("browser-password")
-            page.get_by_role("button", name="Sign in", exact=True).click()
-            page.wait_for_url(self.live_server_url + "/")
+            context.add_cookies([self.browser_session_cookie])
             page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
             composer = page.get_by_role("textbox", name="Message", exact=True)
             composer.fill("First line")
@@ -136,7 +130,9 @@ class BrowserTests(StaticLiveServerTestCase):
             try:
                 expect(page.locator(".message-text").last).to_have_text("First line\nSecond line")
             except AssertionError:
-                self.fail(f"send responses={mobile_responses}, error={page.locator('#chat-error').inner_text()}")
+                self.fail(f"send error={page.locator('#chat-error').inner_text()}, url={page.url}, "
+                          f"session cookie present={any(c['name'] == settings.SESSION_COOKIE_NAME for c in context.cookies())}, "
+                          f"responses={mobile_responses}")
             expect(composer).to_be_focused()
             expect(composer).to_have_value("")
             self.assertTrue(page.locator('#chat-messages').evaluate(
@@ -198,7 +194,7 @@ class BrowserTests(StaticLiveServerTestCase):
         if os.environ.get("BROWSER_SCREENSHOT_DIR"):
             page.screenshot(animations="disabled", path=os.path.join(os.environ["BROWSER_SCREENSHOT_DIR"], "profile-mobile.png"))
         page.get_by_role('link', name='Back to conversations', exact=True).click()
-        page.locator('.chat-row').first.click()
+        page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
         page.get_by_role('link', name='View profile', exact=True).click()
         expect(page.locator('.profile-card h2')).to_have_text('bob')
         expect(page.get_by_role('link', name='Edit profile', exact=True)).to_have_count(0)

@@ -114,7 +114,7 @@ The following are planned or possible improvements, not features implemented tod
 
 - Verified email and phone ownership; password recovery and two-factor authentication.
 - Blocking/reporting users, moderation tools, account quotas and per-account rate limiting.
-- Full-text message search, replies, message editing/deletion with an explicit retention policy.
+- Full-text message search and message editing/deletion with an explicit retention policy.
 - Firebase Cloud Messaging or another push provider for immediate background notifications, plus per-conversation notification preferences.
 - Group conversations with role-based membership.
 - Private object storage, malware scanning and audited orphan-file cleanup.
