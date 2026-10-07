@@ -11,6 +11,7 @@ A self-hosted, real-time private messenger built with Django and Channels.
 - Editable names, private email/phone, uploaded profile photos and optional Gravatar fallback.
 - User profile pages, with phone visibility controlled by the owner.
 - One-to-one conversations with real-time updates and unread counts.
+- Superuser-created groups with admin-managed members, real-time messages and independent unread counts.
 - Telegram-style day separators: Today, Yesterday, and full dates. Times follow the reader's device timezone; hover a time to see its complete date.
 - Photos, documents and other files, up to **5 MiB (5,242,880 bytes)** each, with optional captions.
 - Record, preview, remove and send voice messages. Recording stops at five minutes or near the upload limit.
@@ -42,6 +43,8 @@ python manage.py runserver
 ```
 
 Open <http://localhost:8000>. Register a second account in another browser profile, search for its username and start a conversation. The administration panel is at `/admin/`.
+
+To create a group, sign in to `/admin/` as a superuser, open **Group chats**, add a name and save it with members in the Members section. Members see the group in their conversation list; only superusers can change its membership.
 
 Local `.env` files are ignored by Git and Docker. Set your own `DJANGO_SECRET_KEY`. Never reuse the example credentials on a public deployment.
 
@@ -116,7 +119,7 @@ The following are planned or possible improvements, not features implemented tod
 - Blocking/reporting users, moderation tools, account quotas and per-account rate limiting.
 - Full-text message search and message editing/deletion with an explicit retention policy.
 - Firebase Cloud Messaging or another push provider for immediate background notifications, plus per-conversation notification preferences.
-- Group conversations with role-based membership.
+- Group roles and delegated moderation beyond superuser-managed membership.
 - Private object storage, malware scanning and audited orphan-file cleanup.
 - Range requests and transcoding for broader voice playback/seek support.
 - Account export/deletion, configurable profile visibility and an audit log for administrator file access.

@@ -16,7 +16,9 @@ Text drafts live in session storage, scoped to the user, conversation and browse
 ## Data model
 
 - `PrivateChat`: a random public UUID, two ordered user foreign keys, one unique pair and a creation time.
-- `Message`: a random public UUID, sender, receiver, content, timestamp, read flag, kind, optional file and metadata, optional client UUID and optional reply reference to a message in the same conversation.
+- `GroupChat`: a random public UUID, name, description, creator and memberships. Only a superuser can create a group and add or remove its members in Django admin.
+- `GroupMembership`: one row per user and group, with a per-member last-read message cursor. A new member starts at the current latest message: older history stays visible but is not presented as unread or sent to Android's notification feed. Removing this row revokes access to the group and its attachments.
+- `Message`: a random public UUID, sender, exactly one private chat or group, content, timestamp, kind, optional file and metadata, optional client UUID and optional reply reference to a message in the same conversation. Private messages also have a receiver and read flag; group messages use membership read cursors.
 - `Profile`: a one-to-one user record with a random public UUID, uploaded avatar, phone, contact/avatar preferences and last-seen time. Names and email remain on Django User.
 - Indexes cover conversation cursor queries and recipient unread lookups.
 - The sender/client UUID pair is unique. A UUID reused in another conversation returns HTTP 409.
@@ -32,12 +34,16 @@ All chat endpoints require a session. URL path identifiers are random UUIDv4 val
 | GET | `/` | Inbox |
 | GET | `/search/?q=username` | Exact, case-insensitive username lookup |
 | GET | `/chat/<profile_uuid>/` | Open a conversation |
+| GET | `/groups/<group_uuid>/` | Open a group for a current member |
 | POST | `/api/chat/<profile_uuid>/` | Resolve/create a conversation |
 | GET | `/api/chats/<chat_uuid>/messages/` | Latest page of history |
 | GET | `/api/chats/<chat_uuid>/messages/?before=<id>` | Earlier page |
 | GET | `/api/chats/<chat_uuid>/messages/?after=<id>` | Catch-up page, ascending |
 | POST | `/api/chats/<chat_uuid>/send/` | Multipart `message`, `client_id`, optional `file`, optional `kind=voice`, optional `reply_to=<message_id>` |
 | POST | `/api/chats/<chat_uuid>/read/` | Acknowledge `through=<message_id>` |
+| GET | `/api/groups/<group_uuid>/messages/` | Group history with the same `before` and `after` cursors |
+| POST | `/api/groups/<group_uuid>/send/` | Send group text, file, photo or voice with optional reply |
+| POST | `/api/groups/<group_uuid>/read/` | Advance only the caller's group read cursor |
 | GET | `/api/mobile/unread/` | Latest unread messages for the signed-in user, used by Android notifications |
 | GET | `/api/presence/<profile_uuid>/` | Online state and last-seen time for an active user |
 | POST | `/api/presence/heartbeat/` | CSRF-protected fallback that updates the current user's last-seen time |
@@ -53,6 +59,8 @@ History returns `{messages: [...], has_more: boolean}`. Invalid payloads return 
 ## WebSocket
 
 Connect to `/ws/chat/private/<chat_uuid>/`. Session authentication and the allowed-host origin validator protect the handshake. Nonmembers are rejected with code 4403.
+
+Group pages connect to `/ws/chat/group/<group_uuid>/`. The same handshake rules apply; group membership is checked again before events are delivered, so removing a member revokes an already-open socket. Group messages are stored through the HTTP send endpoint and then broadcast to members. The inbox socket receives updates for each member.
 
 Events are `message`, `read` and `typing`. Send `{type: "typing"}` to announce typing; server-side throttling limits these events to one every two seconds per connection. The legacy `{message: "text"}` command still persists and broadcasts text, but HTTP sending provides retry-safe UUIDs and attachment support.
 

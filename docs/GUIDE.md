@@ -26,6 +26,8 @@ The UUID makes retries safe. The integer message ID is useful for ordering and c
 
 Read receipts are cursor-based: a visible conversation near its newest message acknowledges messages received by that user up to a specified ID. Text drafts remain in the browser tab's session storage; files and recordings are not persisted as drafts.
 
+Groups share this message pipeline. A superuser creates a group in Django admin and adds users in its Members section. Members then see the group in their inbox and can send text, replies, photos, files and voice messages. A group has its own UUID and membership checks on its page, APIs, WebSocket and attachments. Each member has an independent read cursor; group messages do not use the private chat's single-recipient read flag. A new member can read older history, but it starts as already read and does not generate old Android alerts. Ordinary users cannot create groups or change membership.
+
 ## 3. Understand presence and the inbox
 
 Each authenticated page connects to `/ws/inbox/` and sends a periodic heartbeat. It also posts a CSRF-protected HTTP heartbeat, which keeps presence current when a proxy drops WebSockets. A profile is considered online for 75 seconds after its latest heartbeat. Once the browser is suspended or closed, heartbeats stop and the last-seen timestamp remains available. This is an estimate of recent activity, not proof that somebody is looking at a conversation.
@@ -37,6 +39,8 @@ Inbox events trigger an immediate conversation-list refresh. A periodic HTTP ref
 The Android app uses the existing Django session to call `/api/mobile/unread/`. While the app is open it checks on inbox events and with a short fallback interval. WorkManager also schedules background checks, with a minimum periodic interval of 15 minutes. Android can delay those jobs for battery management. The native notification handler remembers the latest received message ID per account and avoids repeating alerts.
 
 This is **periodic delivery**, not instant push. Closing the app does not disable scheduled work, but it does not guarantee an immediate alert either. Reliable immediate background delivery requires a push provider such as Firebase Cloud Messaging, device token registration, and a server-side sender. See [Android architecture and limitations](ANDROID.md).
+
+The notification payload includes a destination path. When that exact private or group conversation is visible in the Android foreground, the native handler consumes the new message without showing an alert. Messages in other conversations still notify. A background app clears the visible-conversation marker and resumes normal periodic alerts.
 
 ## 5. Understand private files and profiles
 

@@ -9,7 +9,7 @@ from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import override_settings
 from django.utils import timezone
 
-from chat.models import Message, PrivateChat
+from chat.models import GroupChat, GroupMembership, Message, PrivateChat
 
 
 @skipUnless(os.environ.get("RUN_BROWSER_TESTS") == "1", "Set RUN_BROWSER_TESTS=1 to run Chromium tests.")
@@ -19,6 +19,10 @@ class BrowserTests(StaticLiveServerTestCase):
         self.alice = User.objects.create_user("alice", password="browser-password")
         self.bob = User.objects.create_user("bob", password="browser-password")
         self.chat = PrivateChat.get_or_create_chat(self.alice, self.bob)
+        if self._testMethodName == "test_group_conversation_uses_existing_composer":
+            self.group = GroupChat.objects.create(name="Design team")
+            GroupMembership.objects.create(group=self.group, user=self.alice)
+            GroupMembership.objects.create(group=self.group, user=self.bob)
         for days, text in [(2, "Earlier conversation"), (1, "Yesterday's message"), (0, "Hello today")]:
             message = Message.objects.create(chat=self.chat, sender=self.bob, receiver=self.alice, content=text)
             Message.objects.filter(pk=message.pk).update(timestamp=timezone.now() - timedelta(days=days))
@@ -98,6 +102,16 @@ class BrowserTests(StaticLiveServerTestCase):
             page.screenshot(animations="disabled", path=os.path.join(os.environ["BROWSER_SCREENSHOT_DIR"], "chat-mobile.png"))
         page.get_by_role('link', name='Back to conversations', exact=True).click()
         expect(page.locator('.sidebar')).to_be_visible()
+        self.assertEqual(self.errors, [])
+
+    def test_group_conversation_uses_existing_composer(self):
+        from playwright.sync_api import expect
+        self.page.goto(f"{self.live_server_url}/groups/{self.group.public_id}/")
+        expect(self.page.get_by_role("heading", name="Design team")).to_be_visible()
+        self.page.get_by_role("textbox", name="Message", exact=True).fill("Group update")
+        self.page.get_by_role("button", name="Send message", exact=True).click()
+        expect(self.page.locator(".message-text").last).to_have_text("Group update")
+        expect(self.page.locator(".chat-row.active")).to_contain_text("Design team")
         self.assertEqual(self.errors, [])
 
     def test_oversize_file_and_microphone_fallback(self):
