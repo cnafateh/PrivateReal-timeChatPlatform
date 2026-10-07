@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - fix/android-delivery-and-storage
 
 permissions:
   contents: read
@@ -40,7 +41,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:latest
+            ${{ github.ref_name == 'main' && format('{0}:latest', env.IMAGE_NAME) || format('{0}:v1.2.0-rc1', env.IMAGE_NAME) }}
             ${{ env.IMAGE_NAME }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
