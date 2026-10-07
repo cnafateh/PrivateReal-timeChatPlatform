@@ -61,7 +61,7 @@ Try uploading a small PNG from the app and admin again. If the probe succeeds bu
 
 ## Where the files live
 
-The repository's local-development Compose configuration mounts the Docker named volume `media_data` at **`/app/media`**. The production example above uses a host bind mount at the same container path. Django's default `MEDIA_ROOT` resolves to that path inside the image. Message files live under `attachments/<internal-chat-id>/<random-name>`; uploaded profile photos live under `avatars/<profile-uuid>/<random-name>.png`. The database stores storage-relative paths and metadata, not the file contents.
+The repository's local-development Compose configuration mounts the Docker named volume `media_data` at **`/app/media`**. The production example above uses a host bind mount at the same container path. Django's default `MEDIA_ROOT` resolves to that path inside the image. New message files live under `attachments/private-<internal-chat-id>/` or `attachments/group-<internal-group-id>/`, with random filenames. Older private attachments retain their existing paths. Uploaded profile photos live under `avatars/<profile-uuid>/<random-name>.png`. The database stores storage-relative paths and metadata, not the file contents.
 
 A named volume is already stored on the Docker host, outside the container's disposable writable layer. A host bind mount gives an explicit host path; it is not required merely to survive restarts.
 
