@@ -141,6 +141,33 @@ class ChatTests(TestCase):
         self.assertEqual(response.json()["messages"][0]["chat_id"], str(self.chat.public_id))
         self.assertEqual(response.json()["user_id"], str(self.alice.profile.public_id))
 
+    def test_presence_reports_online_and_last_seen(self):
+        url = reverse("presence", args=[self.bob.profile.public_id])
+        self.assertEqual(self.client.get(url).json(), {"online": False, "last_seen": None})
+        seen = timezone.now()
+        self.bob.profile.last_seen = seen
+        self.bob.profile.save(update_fields=["last_seen"])
+        response = self.client.get(url)
+        self.assertTrue(response.json()["online"])
+        self.assertEqual(response.json()["last_seen"], seen.isoformat())
+        self.assertEqual(response["Cache-Control"], "private, no-store")
+        self.bob.profile.last_seen = seen - timedelta(minutes=2)
+        self.bob.profile.save(update_fields=["last_seen"])
+        self.assertFalse(self.client.get(url).json()["online"])
+        self.client.logout()
+        self.assertEqual(self.client.get(url).status_code, 302)
+
+    def test_http_presence_heartbeat_updates_current_user_only(self):
+        self.assertIsNone(self.alice.profile.last_seen)
+        response = self.client.post(reverse("presence_heartbeat"))
+        self.assertEqual(response.status_code, 200)
+        self.alice.profile.refresh_from_db()
+        self.assertTrue(self.alice.profile.is_online)
+        self.bob.profile.refresh_from_db()
+        self.assertIsNone(self.bob.profile.last_seen)
+        self.client.logout()
+        self.assertEqual(self.client.post(reverse("presence_heartbeat")).status_code, 302)
+
     def test_inbox_updates_include_new_message_and_unread_count(self):
         url = reverse("inbox_updates")
         self.assertEqual(self.client.get(url).status_code, 200)
@@ -327,6 +354,20 @@ class SocketTests(TransactionTestCase):
             finally:
                 await alice.disconnect(); await bob.disconnect(); await outsider.disconnect()
                 await anonymous.disconnect()
+        async_to_sync(run)()
+
+    def test_inbox_heartbeat_updates_presence(self):
+        async def run():
+            socket = self.inbox_socket(self.alice)
+            self.assertTrue((await socket.connect())[0])
+            try:
+                from channels.db import database_sync_to_async
+                seen = await database_sync_to_async(lambda: User.objects.get(pk=self.alice.pk).profile.last_seen)()
+                self.assertIsNotNone(seen)
+                await socket.send_to(text_data='{"type":"heartbeat"}')
+                self.assertTrue(await socket.receive_nothing(timeout=0.2))
+            finally:
+                await socket.disconnect()
         async_to_sync(run)()
 
     def test_rejects_anonymous_and_nonmembers(self):

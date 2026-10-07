@@ -1,0 +1,53 @@
+# Run this beside the production .env file. Copy existing /app/media files
+# into the host directory before enabling this mount; see docs/STORAGE.md.
+services:
+  web:
+    image: ghcr.io/cnafateh/chatapp:v1.2.0-rc1
+    container_name: chatapp
+    env_file: .env
+    environment:
+      MEDIA_ROOT: /app/media
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - type: bind
+        source: /srv/chatapp/media
+        target: /app/media
+        bind:
+          create_host_path: false
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - database
+      - proxy
+      - internal
+      - my_shared_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: chatapp-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - internal
+
+volumes:
+  redis_data:
+
+networks:
+  database:
+    external: true
+  proxy:
+    external: true
+  my_shared_network:
+    external: true
+  internal:
+    driver: bridge

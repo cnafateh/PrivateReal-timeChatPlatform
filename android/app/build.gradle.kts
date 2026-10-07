@@ -11,8 +11,8 @@ android {
         applicationId = "ir.sinafateh.pulse"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 5
+        versionName = "1.2.0"
     }
 
     val releaseKeyStore = System.getenv("PULSE_KEYSTORE_FILE")
@@ -23,6 +23,7 @@ android {
                 storePassword = System.getenv("PULSE_STORE_PASSWORD") ?: ""
                 keyAlias = System.getenv("PULSE_KEY_ALIAS") ?: ""
                 keyPassword = System.getenv("PULSE_KEY_PASSWORD") ?: ""
+                storeType = System.getenv("PULSE_STORE_TYPE") ?: "pkcs12"
             }
         }
     }
@@ -44,4 +45,5 @@ android {
 
 dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.5")
+    implementation("androidx.webkit:webkit:1.17.1")
 }

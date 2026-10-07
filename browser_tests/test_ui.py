@@ -4,6 +4,7 @@ from datetime import timedelta
 from unittest import skipUnless
 
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from django.test import override_settings
 from django.utils import timezone
@@ -24,6 +25,13 @@ class BrowserTests(StaticLiveServerTestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.settings_override = override_settings(MEDIA_ROOT=self.directory.name)
         self.settings_override.enable()
+        self.client.force_login(self.alice)
+        session_cookie = self.client.cookies[settings.SESSION_COOKIE_NAME].value
+        self.browser_session_cookie = {
+            "name": settings.SESSION_COOKIE_NAME,
+            "value": session_cookie,
+            "url": self.live_server_url,
+        }
         import asyncio
         import sys
         if sys.platform == "win32":
@@ -40,11 +48,7 @@ class BrowserTests(StaticLiveServerTestCase):
         self.page = self.browser.new_page()
         self.errors = []
         self.page.on("pageerror", lambda exc: self.errors.append(str(exc)))
-        self.page.goto(f"{self.live_server_url}/login/")
-        self.page.get_by_label("Username", exact=True).fill("alice")
-        self.page.get_by_label("Password", exact=True).fill("browser-password")
-        self.page.get_by_role("button", name="Sign in", exact=True).click()
-        self.page.wait_for_url(self.live_server_url + "/")
+        self.page.context.add_cookies([self.browser_session_cookie])
         self.page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
 
     def tearDown(self):
@@ -59,9 +63,15 @@ class BrowserTests(StaticLiveServerTestCase):
         expect(page.locator('.date-divider')).to_have_count(3)
         expect(page.locator('.date-divider').last).to_have_text('Today')
         expect(page.locator('.date-divider').nth(1)).to_have_text('Yesterday')
+        dividers = page.locator('.date-divider').evaluate_all(
+            '(items) => items.map(el => ({top: el.getBoundingClientRect().top, bottom: el.getBoundingClientRect().bottom}))')
+        self.assertTrue(all(left['bottom'] < right['top'] for left, right in zip(dividers, dividers[1:])))
         page.get_by_role('textbox', name='Message', exact=True).fill('A new message')
         page.get_by_role('button', name='Send message', exact=True).click()
-        expect(page.locator('.message-text').last).to_have_text('A new message')
+        try:
+            expect(page.locator('.message-text').last).to_have_text('A new message')
+        except AssertionError:
+            self.fail(f"send error={page.locator('#chat-error').inner_text()}, page errors={self.errors}")
         page.locator('#file-input').set_input_files({'name':'notes.txt', 'mimeType':'text/plain', 'buffer':b'hello from a file'})
         expect(page.locator('#attachment-name')).to_contain_text('notes.txt')
         page.get_by_role('button', name='Send message', exact=True).click()
@@ -104,10 +114,12 @@ class BrowserTests(StaticLiveServerTestCase):
                                            is_mobile=True, has_touch=True)
         try:
             page = context.new_page()
-            page.goto(f"{self.live_server_url}/login/")
-            page.get_by_label("Username", exact=True).fill("alice")
-            page.get_by_label("Password", exact=True).fill("browser-password")
-            page.get_by_role("button", name="Sign in", exact=True).click()
+            mobile_responses = []
+            page.on("response", lambda response: mobile_responses.append({
+                "status": response.status,
+                "session_cookie_sent": f"{settings.SESSION_COOKIE_NAME}=" in (response.request.header_value("cookie") or ""),
+            }) if "/send/" in response.url else None)
+            context.add_cookies([self.browser_session_cookie])
             page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
             composer = page.get_by_role("textbox", name="Message", exact=True)
             composer.fill("First line")
@@ -115,11 +127,35 @@ class BrowserTests(StaticLiveServerTestCase):
             composer.type("Second line")
             expect(composer).to_have_value("First line\nSecond line")
             page.get_by_role("button", name="Send message", exact=True).click()
-            expect(page.locator(".message-text").last).to_have_text("First line\nSecond line")
+            try:
+                expect(page.locator(".message-text").last).to_have_text("First line\nSecond line")
+            except AssertionError:
+                self.fail(f"send error={page.locator('#chat-error').inner_text()}, url={page.url}, "
+                          f"session cookie present={any(c['name'] == settings.SESSION_COOKIE_NAME for c in context.cookies())}, "
+                          f"responses={mobile_responses}")
             expect(composer).to_be_focused()
             expect(composer).to_have_value("")
+            self.assertTrue(page.locator('#chat-messages').evaluate(
+                '(el) => el.scrollHeight - el.scrollTop - el.clientHeight < 3'))
         finally:
             context.close()
+
+    def test_reply_actions_open_on_hold_without_shifting_bubbles(self):
+        from playwright.sync_api import expect
+        page = self.page
+        bubble = page.locator('.message-row.other .message-bubble').last
+        expect(page.locator('.message-actions:visible')).to_have_count(0)
+        bounds = bubble.bounding_box()
+        page.mouse.move(bounds['x'] + 20, bounds['y'] + 20)
+        page.mouse.down()
+        page.wait_for_timeout(550)
+        page.mouse.up()
+        expect(page.locator('.message-actions:visible')).to_have_count(1)
+        page.get_by_role('button', name='Reply', exact=True).click()
+        expect(page.locator('#reply-preview')).to_be_visible()
+        expect(page.locator('.reply-button')).to_have_count(0)
+        self.assertEqual(page.locator('.date-divider').first.evaluate(
+            '(el) => getComputedStyle(el).position'), 'static')
 
     def test_voice_record_preview_and_send(self):
         from playwright.sync_api import expect
@@ -158,7 +194,7 @@ class BrowserTests(StaticLiveServerTestCase):
         if os.environ.get("BROWSER_SCREENSHOT_DIR"):
             page.screenshot(animations="disabled", path=os.path.join(os.environ["BROWSER_SCREENSHOT_DIR"], "profile-mobile.png"))
         page.get_by_role('link', name='Back to conversations', exact=True).click()
-        page.locator('.chat-row').first.click()
+        page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
         page.get_by_role('link', name='View profile', exact=True).click()
         expect(page.locator('.profile-card h2')).to_have_text('bob')
         expect(page.get_by_role('link', name='Edit profile', exact=True)).to_have_count(0)

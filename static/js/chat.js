@@ -9,7 +9,7 @@
     let socket, retry = 0, reconnectTimer, syncing = false, sending = false, closed = false;
     let selectedFile = null, selectedKind = 'file', previewUrl, pendingId, pendingFingerprint, replyTarget = null;
     let recorder, recordingStream, recordingTimer, recordingSeconds = 0, typingTimer, readTimer;
-    let lastTyping = 0, readThrough = 0;
+    let lastTyping = 0, readThrough = 0, keepLatestUntil = 0, openActions = null;
     function messageId() {
         if (crypto.randomUUID) return crypto.randomUUID();
         const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -58,11 +58,21 @@
     function replySummary(data) { return data.message || data.name || (data.kind === 'voice' ? 'Voice message' : 'Attachment'); }
     function clearReply() { replyTarget = null; $('reply-preview').hidden = true; }
     function chooseReply(data) {
+        closeActions();
         replyTarget = data;
         $('reply-sender').textContent = data.sender;
         $('reply-text').textContent = replySummary(data).slice(0, 160);
         $('reply-preview').hidden = false;
         input.focus();
+    }
+    function closeActions() {
+        if (openActions) openActions.hidden = true;
+        openActions = null;
+    }
+    function showActions(menu) {
+        closeActions();
+        menu.hidden = false;
+        openActions = menu;
     }
     function add(data) {
         if (records.has(data.id)) {
@@ -106,9 +116,37 @@
         time.dateTime = data.timestamp; time.title = stamp.toLocaleString(); meta.append(time);
         if (own) meta.append(node('span', 'message-status'));
         bubble.append(meta); row.append(bubble);
-        const replyButton = node('button', 'reply-button', '↩'); replyButton.type = 'button';
-        replyButton.title = 'Reply'; replyButton.setAttribute('aria-label', `Reply to ${data.sender}`);
-        replyButton.addEventListener('click', () => chooseReply(data)); row.append(replyButton);
+        const actions = node('div', 'message-actions'); actions.hidden = true;
+        const replyButton = node('button', '', 'Reply'); replyButton.type = 'button';
+        replyButton.addEventListener('click', () => chooseReply(data)); actions.append(replyButton);
+        if (data.message) {
+            const copyButton = node('button', '', 'Copy'); copyButton.type = 'button';
+            copyButton.addEventListener('click', async () => {
+                try { await navigator.clipboard.writeText(data.message); } catch (_) { error('Could not copy the message.'); }
+                closeActions();
+            });
+            actions.append(copyButton);
+        }
+        row.append(actions);
+        let holdTimer, startX, startY;
+        bubble.addEventListener('pointerdown', event => {
+            if (event.target.closest('a, button, audio')) return;
+            closeActions();
+            startX = event.clientX; startY = event.clientY;
+            holdTimer = setTimeout(() => showActions(actions), 450);
+        });
+        bubble.addEventListener('pointermove', event => {
+            if (holdTimer && Math.hypot(event.clientX - startX, event.clientY - startY) > 12) clearTimeout(holdTimer);
+        });
+        ['pointerup', 'pointercancel', 'pointerleave'].forEach(type =>
+            bubble.addEventListener(type, () => clearTimeout(holdTimer)));
+        bubble.addEventListener('contextmenu', event => { event.preventDefault(); showActions(actions); });
+        bubble.addEventListener('keydown', event => {
+            if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+                event.preventDefault(); showActions(actions); replyButton.focus();
+            }
+        });
+        bubble.tabIndex = 0;
         rows.set(data.id, row);
         const next = [...rows.keys()].filter(id => id > data.id).sort((a, b) => a - b)[0];
         list.insertBefore(row, next ? rows.get(next) : null); receipt(row, data);
@@ -129,6 +167,23 @@
         try { data = await response.json(); } catch (_) { throw new Error('The server could not process the request. Please try again.'); }
         if (!response.ok) throw new Error(data.error || 'Request failed. Please try again.');
         return data;
+    }
+    async function refreshPresence() {
+        try {
+            const data = await request(config.presenceUrl);
+            const label = $('presence-status');
+            if (data.online) {
+                label.textContent = 'Online';
+                label.classList.add('online');
+            } else {
+                label.classList.remove('online');
+                if (!data.last_seen) { label.textContent = 'Last seen unavailable'; return; }
+                const seen = new Date(data.last_seen), today = new Date();
+                const day = dateKey(seen) === dateKey(today) ? 'today' :
+                    seen.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'});
+                label.textContent = `Last seen ${day} at ${seen.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+            }
+        } catch (_) { $('presence-status').textContent = 'Activity unavailable'; }
     }
     function scheduleRead() {
         clearTimeout(readTimer);
@@ -163,7 +218,7 @@
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
         socket = new WebSocket(`${protocol}//${location.host}/ws/chat/private/${config.chatId}/`);
         socket.addEventListener('open', () => {
-            retry = 0; $('connection-status').textContent = 'Connected'; sync();
+            retry = 0; $('connection-status').textContent = ''; sync();
         });
         socket.addEventListener('message', event => {
             let data; try { data = JSON.parse(event.data); } catch (_) { return; }
@@ -218,14 +273,19 @@
         if (selectedFile) { body.set('file', selectedFile); body.set('kind', selectedKind); }
         setBusy(true); error();
         try {
-            const data = await request(config.sendUrl, {method:'POST', body}); merge([data], true);
+            const data = await request(config.sendUrl, {method:'POST', body});
+            keepLatestUntil = Date.now() + 1500;
+            merge([data], true);
             if (input.value === original) {
                 input.value = ''; input.style.height = '';
                 try { sessionStorage.removeItem(`pulse-draft-${config.userId}-${config.chatId}`); } catch (_) { /* Storage is optional. */ }
             }
             clearFile(); clearReply(); pendingFingerprint = null;
         } catch (exc) { error(`${exc.message} Your message is kept here for retry.`); }
-        finally { setBusy(false); input.focus({preventScroll: true}); }
+        finally {
+            setBusy(false); input.focus({preventScroll: true});
+            if (keepLatestUntil > Date.now()) requestAnimationFrame(() => requestAnimationFrame(bottom));
+        }
     }
     async function recordVoice() {
         if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
@@ -234,6 +294,19 @@
         }
         $('voice-button').disabled = true; $('attach-button').disabled = true; send.disabled = true;
         try {
+            if (window.PulseBridge) await new Promise((resolve, reject) => {
+                const bridge = window.PulseBridge;
+                const timeout = setTimeout(() => finish(false), 15000);
+                function finish(granted) {
+                    clearTimeout(timeout);
+                    bridge.removeEventListener('message', onMessage);
+                    if (granted) resolve();
+                    else reject(new Error('Microphone access is off. Allow it in Android app settings and try again.'));
+                }
+                function onMessage(event) { finish(event.data === 'granted'); }
+                bridge.addEventListener('message', onMessage);
+                bridge.postMessage(JSON.stringify({type:'microphone'}));
+            });
             recordingStream = await navigator.mediaDevices.getUserMedia({audio:true});
             const mimeType = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4'].find(type => MediaRecorder.isTypeSupported(type));
             if (!mimeType) throw new Error('This browser cannot record a supported audio format.');
@@ -269,6 +342,10 @@
         } finally { $('voice-button').disabled = false; }
     }
     $('composer').addEventListener('submit', submit);
+    document.addEventListener('pointerdown', event => {
+        if (openActions && !openActions.contains(event.target)) closeActions();
+    });
+    new ResizeObserver(() => { if (keepLatestUntil > Date.now()) bottom(); }).observe(list);
     send.addEventListener('mousedown', event => event.preventDefault());
     input.addEventListener('keydown', event => {
         if (event.key === 'Enter' && !event.isComposing &&
@@ -312,7 +389,8 @@
     });
     window.addEventListener('pageshow', event => { if (event.persisted) { closed = false; connect(); } });
     try { input.value = sessionStorage.getItem(`pulse-draft-${config.userId}-${config.chatId}`) || ''; } catch (_) { /* Storage is optional. */ }
-    merge(config.initial, true); connect();
+    merge(config.initial, true); connect(); refreshPresence();
     setInterval(sync, 15000);
+    setInterval(refreshPresence, 15000);
     setInterval(groupDays, 60000);
 })();

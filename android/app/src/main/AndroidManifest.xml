@@ -7,7 +7,8 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
         android:label="Pulse"
-        android:icon="@drawable/ic_pulse"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher"
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"

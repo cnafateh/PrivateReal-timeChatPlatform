@@ -17,6 +17,7 @@ A self-hosted, real-time private messenger built with Django and Channels.
 - Persistent light/dark theme, with the operating-system preference as the default.
 - Read receipts, typing indicators, earlier-message pagination and automatic reconnection.
 - Reply to messages with a quoted preview in the conversation.
+- Long-press a message to reply or copy its text; see online and last-seen status for other users.
 - Recovery of missed messages through periodic history synchronization; repeat requests do not duplicate messages.
 - Per-conversation text drafts in the current browser tab, multiline text, bidirectional message text and responsive layouts.
 - Administration with image/audio previews, protected file downloads and combined participant, sender, recipient, attachment, type, date and read-state filters.
@@ -57,6 +58,8 @@ Open <http://localhost:8080>. Compose starts Django/Daphne, PostgreSQL, Redis an
 
 For public hosting and upgrades, follow [deployment instructions](docs/DEPLOYMENT.md). The provided Compose file binds to localhost; configure your trusted HTTPS proxy before exposing the service.
 
+For a server with external database and proxy networks, use [the production Compose example](compose.production.yml) after following the [media migration guide](docs/STORAGE.md). It keeps uploaded avatars and attachments in `/srv/chatapp/media` on the host. The review image is `ghcr.io/cnafateh/chatapp:v1.2.0-rc1`; `latest` is published from `main` after merge.
+
 ## Tests
 
 ```sh
@@ -84,11 +87,11 @@ Only conversation members can retrieve attachments. Media files are never publis
 
 Messages and files are stored on your server. **This is not end-to-end encryption**: authorized server operators can access stored content. File downloads are not malware-scanned. Audio container detection does not validate every codec or guarantee playback in every browser. Mobile Safari and Chromium may select different recording formats.
 
-Voice recording needs microphone permission and HTTPS, except on localhost. File selection remains available if recording is unsupported. There are no push notifications while the page is closed.
+Voice recording needs microphone permission and HTTPS, except on localhost. File selection remains available if recording is unsupported. The Android app checks for messages periodically while closed; instant push delivery is not available without a push provider.
 
 ## Documentation
 
-- [Complete application and architecture guide (فارسی)](docs/GUIDE.fa.md)
+- [Learning guide: application flow and architecture](docs/GUIDE.md)
 - [Android app build, installation and notifications](docs/ANDROID.md)
 - [Media persistence, host directories and backups](docs/STORAGE.md)
 - [Deployment, configuration and upgrades](docs/DEPLOYMENT.md)
@@ -111,8 +114,8 @@ The following are planned or possible improvements, not features implemented tod
 
 - Verified email and phone ownership; password recovery and two-factor authentication.
 - Blocking/reporting users, moderation tools, account quotas and per-account rate limiting.
-- Full-text message search, replies, message editing/deletion with an explicit retention policy.
-- Push notifications and per-conversation notification preferences.
+- Full-text message search and message editing/deletion with an explicit retention policy.
+- Firebase Cloud Messaging or another push provider for immediate background notifications, plus per-conversation notification preferences.
 - Group conversations with role-based membership.
 - Private object storage, malware scanning and audited orphan-file cleanup.
 - Range requests and transcoding for broader voice playback/seek support.

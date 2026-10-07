@@ -5,6 +5,7 @@
         <div class="chat-copy">
             <div class="chat-title-line">
                 <span class="chat-title">{{ item.other_user.profile.display_name }}</span>
+                {% if item.other_user.profile.is_online %}<span class="presence-dot" title="Online" aria-label="Online"></span>{% endif %}
                 {% if item.last_message %}<time class="chat-time" datetime="{{ item.last_message.timestamp|date:'c' }}" title="{{ item.last_message.timestamp|date:'Y-m-d H:i' }}">{{ item.last_message.timestamp|date:'M j' }}</time>{% endif %}
             </div>
             <div class="chat-title-line"><span class="chat-preview">{% if item.last_message %}{{ item.last_message.preview|truncatechars:50 }}{% else %}Start a conversation{% endif %}</span>

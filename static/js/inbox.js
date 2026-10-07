@@ -1,10 +1,32 @@
 (() => {
     'use strict';
     const list = document.querySelector('.conversation-list');
-    if (!list) return;
     let socket, retry = 0, timer, loading = false, closed = false, lastHtml;
+    async function touchPresence() {
+        if (document.hidden || closed) return;
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+        if (!csrf) return;
+        try {
+            await fetch('/api/presence/heartbeat/', {
+                method: 'POST', credentials: 'same-origin', cache: 'no-store',
+                headers: {'X-CSRFToken': csrf}
+            });
+        } catch (_) { /* A later heartbeat retries after connectivity returns. */ }
+    }
+    function heartbeat() {
+        if (socket?.readyState === WebSocket.OPEN)
+            socket.send('{"type":"heartbeat"}');
+    }
+    async function syncNotifications() {
+        if (!window.PulseBridge || document.hidden) return;
+        try {
+            const response = await fetch('/api/mobile/unread/', {credentials:'same-origin', cache:'no-store'});
+            if (!response.ok || response.redirected) return;
+            window.PulseBridge.postMessage(JSON.stringify({type:'notifications', payload: await response.json()}));
+        } catch (_) { /* The next WebSocket event or scheduled check retries. */ }
+    }
     async function refresh() {
-        if (loading || document.hidden) return;
+        if (!list || loading || document.hidden) return;
         loading = true;
         try {
             const response = await fetch('/api/inbox/', {credentials: 'same-origin', cache: 'no-store'});
@@ -31,17 +53,20 @@
         if (closed) return;
         const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
         socket = new WebSocket(`${scheme}//${location.host}/ws/inbox/`);
-        socket.addEventListener('open', () => { retry = 0; refresh(); });
-        socket.addEventListener('message', refresh);
+        socket.addEventListener('open', () => { retry = 0; heartbeat(); touchPresence(); refresh(); syncNotifications(); });
+        socket.addEventListener('message', () => { refresh(); syncNotifications(); });
         socket.addEventListener('close', event => {
             if (!closed && event.code !== 4403)
                 timer = setTimeout(connect, Math.min(30000, 1000 * 2 ** retry++));
         });
     }
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
-    window.addEventListener('online', () => { refresh(); if (!socket || socket.readyState === WebSocket.CLOSED) connect(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { touchPresence(); refresh(); syncNotifications(); } });
+    window.addEventListener('online', () => { touchPresence(); refresh(); syncNotifications(); if (!socket || socket.readyState === WebSocket.CLOSED) connect(); });
     window.addEventListener('pagehide', () => { closed = true; clearTimeout(timer); socket?.close(); });
     window.addEventListener('pageshow', event => { if (event.persisted) { closed = false; connect(); } });
-    connect();
+    touchPresence(); connect();
+    setInterval(heartbeat, 25000);
+    setInterval(touchPresence, 25000);
     setInterval(refresh, 15000);
+    setInterval(syncNotifications, 15000);
 })();

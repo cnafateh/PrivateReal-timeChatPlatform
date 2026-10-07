@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Android delivery and production storage
+
+- Use a monochrome conversation icon for Android status-bar notifications and the website's icon in the application sidebar.
+- Keep reply actions hidden until a long press or keyboard context-menu action; keep calendar separators in normal document flow.
+- Add an authenticated HTTP presence heartbeat as a fallback for interrupted WebSockets.
+- Schedule a catch-up notification check when Android moves to the background and refresh periodic work after upgrades. Background delivery remains periodic, not instant push.
+- Provide a production Compose example with a persistent host media directory and an English learning guide covering the server and Android architecture.
+
+
 ### Profiles, access URLs and administration
 
 - Replace numeric public routes with random UUIDv4 identifiers for profiles, chats and attachments, including WebSocket endpoints.

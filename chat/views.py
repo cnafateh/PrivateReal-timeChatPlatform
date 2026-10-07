@@ -8,6 +8,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, OuterRef, Q, Subquery
 from django.http import FileResponse, Http404, JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET, require_POST
@@ -93,6 +94,7 @@ def private_chat(request, user_id):
                         "historyUrl": reverse("message_history", args=[chat.public_id]),
                         "sendUrl": reverse("send_message", args=[chat.public_id]),
                         "readUrl": reverse("mark_read", args=[chat.public_id]),
+                        "presenceUrl": reverse("presence", args=[other_user.profile.public_id]),
                         "initial": initial, "hasMore": len(recent) > 50},
     })
 
@@ -217,6 +219,25 @@ def mobile_unread(request):
          "sender_profile_id": str(message.sender.profile.public_id)}
         for message in reversed(received)
     ], "user_id": str(request.user.profile.public_id)})
+
+
+@login_required
+@require_GET
+def presence(request, public_id):
+    profile = get_object_or_404(Profile, public_id=public_id, user__is_active=True)
+    response = JsonResponse({"online": profile.is_online,
+                             "last_seen": profile.last_seen.isoformat() if profile.last_seen else None})
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
+@require_POST
+def presence_heartbeat(request):
+    Profile.objects.filter(user=request.user).update(last_seen=timezone.now())
+    response = JsonResponse({"ok": True})
+    response["Cache-Control"] = "private, no-store"
+    return response
 
 
 @login_required
