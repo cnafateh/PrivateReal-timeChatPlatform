@@ -77,3 +77,4 @@ jobs:
         env:
           RUN_BROWSER_TESTS: "1"
       - run: cp .env.example .env && docker compose config --quiet
+      - run: docker compose --env-file .env.example -f compose.production.yml --profile maintenance config --quiet

@@ -5,7 +5,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from PIL import Image
-from .models import Message, PrivateChat
+from .models import Message, PrivateChat, Profile
 
 
 class AdminMediaTests(TestCase):
@@ -71,3 +71,16 @@ class AdminMediaTests(TestCase):
         response = self.client.get(reverse("admin:chat_profile_changelist"), {"q":"alice"})
         self.assertEqual(list(response.context["cl"].queryset), [self.alice.profile])
         self.assertEqual(self.client.post(reverse("admin:chat_profile_delete", args=[self.alice.profile.pk]), {"post":"yes"}).status_code, 403)
+
+    def test_admin_can_replace_profile_photo(self):
+        self.client.force_login(self.admin)
+        photo = io.BytesIO()
+        Image.new("RGB", (32, 32), "blue").save(photo, "PNG")
+        profile = self.alice.profile
+        response = self.client.post(reverse("admin:chat_profile_change", args=[profile.pk]), {
+            "new_avatar": SimpleUploadedFile("avatar.png", photo.getvalue(), "image/png"),
+            "phone": "", "show_phone": "on", "use_gravatar": "on", "_save": "Save",
+        })
+        self.assertEqual(response.status_code, 302)
+        profile = Profile.objects.get(pk=profile.pk)
+        self.assertTrue(profile.avatar.storage.exists(profile.avatar.name))
