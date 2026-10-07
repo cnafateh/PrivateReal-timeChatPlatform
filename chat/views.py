@@ -5,7 +5,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Max, OuterRef, Q, Subquery
+from django.db.models import Count, F, Max, OuterRef, Q, Subquery
 from django.http import FileResponse, Http404, JsonResponse
 from django.urls import reverse
 from django.utils import timezone
@@ -14,8 +14,8 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import ProfileForm, RegisterForm
-from .models import Message, PrivateChat, Profile
-from .services import MAX_MESSAGE_LENGTH, broadcast, broadcast_inbox, inspect_upload, serialize_message
+from .models import GroupChat, GroupMembership, Message, PrivateChat, Profile
+from .services import MAX_MESSAGE_LENGTH, broadcast, broadcast_group, broadcast_inbox, inspect_upload, serialize_message
 
 
 def login_view(request):
@@ -56,8 +56,25 @@ def conversations(user):
                            activity=Max("messages__timestamp"))
                  .order_by("-activity", "-created_at"))
     last_messages = Message.objects.select_related("sender__profile").in_bulk([c.last_id for c in chats if c.last_id])
-    return [{"chat": c, "other_user": c.get_other_user(user),
-             "last_message": last_messages.get(c.last_id), "unread_count": c.unread_count} for c in chats]
+    items = [{"chat": c, "other_user": c.get_other_user(user), "group": None,
+              "last_message": last_messages.get(c.last_id), "unread_count": c.unread_count} for c in chats]
+    group_latest = Message.objects.filter(group_id=OuterRef("group_id")).order_by("-id")
+    memberships = list(GroupMembership.objects.filter(user=user, user__is_active=True)
+                       .select_related("group")
+                       .annotate(last_id=Subquery(group_latest.values("id")[:1]),
+                                 unread_count=Count("group__messages", filter=Q(
+                                     group__messages__id__gt=F("last_read_id")) &
+                                     ~Q(group__messages__sender=user))))
+    group_messages = Message.objects.select_related("sender").in_bulk(
+        [membership.last_id for membership in memberships if membership.last_id])
+    for membership in memberships:
+        group = membership.group
+        items.append({"chat": None, "other_user": None, "group": group,
+                      "last_message": group_messages.get(membership.last_id),
+                      "unread_count": membership.unread_count})
+    items.sort(key=lambda item: (item["last_message"].timestamp if item["last_message"] else
+                                 (item["group"] or item["chat"]).created_at), reverse=True)
+    return items
 
 
 @login_required
@@ -91,6 +108,7 @@ def private_chat(request, user_id):
     return render(request, "chat/private_chat.html", {
         "chat": chat, "other_user": other_user, "chats": conversations(request.user),
         "chat_config": {"chatId": str(chat.public_id), "userId": str(request.user.profile.public_id),
+                        "socketUrl": f"/ws/chat/private/{chat.public_id}/", "groupMode": False,
                         "historyUrl": reverse("message_history", args=[chat.public_id]),
                         "sendUrl": reverse("send_message", args=[chat.public_id]),
                         "readUrl": reverse("mark_read", args=[chat.public_id]),
@@ -113,6 +131,28 @@ def member_chat(request, chat_id):
                             .filter(Q(user1=request.user) | Q(user2=request.user)), public_id=chat_id)
 
 
+def member_group(request, group_id):
+    return get_object_or_404(GroupChat.objects.filter(members=request.user, members__is_active=True),
+                             public_id=group_id)
+
+
+@login_required
+def group_chat(request, group_id):
+    group = member_group(request, group_id)
+    recent = list(group.messages.select_related("sender__profile", "reply_to__sender").order_by("-id")[:51])
+    return render(request, "chat/group_chat.html", {
+        "group": group, "member_count": group.members.filter(is_active=True).count(),
+        "chats": conversations(request.user),
+        "chat_config": {"chatId": str(group.public_id), "userId": str(request.user.profile.public_id),
+                        "socketUrl": f"/ws/chat/group/{group.public_id}/", "groupMode": True,
+                        "historyUrl": reverse("group_message_history", args=[group.public_id]),
+                        "sendUrl": reverse("group_send_message", args=[group.public_id]),
+                        "readUrl": reverse("group_mark_read", args=[group.public_id]),
+                        "initial": [serialize_message(m) for m in reversed(recent[:50])],
+                        "hasMore": len(recent) > 50},
+    })
+
+
 @login_required
 @require_GET
 def message_history(request, chat_id):
@@ -132,6 +172,102 @@ def message_history(request, chat_id):
     rows = list(query.order_by("id" if after else "-id")[:51])
     page = rows[:50] if after else list(reversed(rows[:50]))
     return JsonResponse({"messages": [serialize_message(m) for m in page], "has_more": len(rows) > 50})
+
+
+@login_required
+@require_GET
+def group_message_history(request, group_id):
+    group = member_group(request, group_id)
+    query = group.messages.select_related("sender__profile", "reply_to__sender")
+    try:
+        before = int(request.GET.get("before", 0))
+        after = int(request.GET.get("after", 0))
+        if before < 0 or after < 0 or (before and after):
+            raise ValueError
+    except ValueError:
+        return JsonResponse({"error": "Invalid message cursor."}, status=400)
+    if before:
+        query = query.filter(pk__lt=before)
+    if after:
+        query = query.filter(pk__gt=after)
+    rows = list(query.order_by("id" if after else "-id")[:51])
+    page = rows[:50] if after else list(reversed(rows[:50]))
+    return JsonResponse({"messages": [serialize_message(m) for m in page], "has_more": len(rows) > 50})
+
+
+@login_required
+@require_POST
+def group_send_message(request, group_id):
+    group = member_group(request, group_id)
+    content = request.POST.get("message", "").strip()
+    upload = request.FILES.get("file")
+    if getattr(request, "upload_too_large", False):
+        return JsonResponse({"error": "Files may not exceed 5 MB."}, status=400)
+    try:
+        client_id = uuid.UUID(request.POST.get("client_id", ""))
+    except (ValueError, TypeError, AttributeError):
+        return JsonResponse({"error": "A valid client_id is required."}, status=400)
+    existing = Message.objects.filter(sender=request.user, client_id=client_id).select_related(
+        "sender__profile", "reply_to__sender").first()
+    if existing:
+        if existing.group_id != group.pk:
+            return JsonResponse({"error": "Message identifier already used."}, status=409)
+        return JsonResponse(serialize_message(existing))
+    reply_to = None
+    if request.POST.get("reply_to"):
+        try:
+            reply_id = int(request.POST["reply_to"])
+        except (ValueError, TypeError):
+            return JsonResponse({"error": "Invalid reply target."}, status=400)
+        reply_to = group.messages.select_related("sender").filter(pk=reply_id).first()
+        if reply_to is None:
+            return JsonResponse({"error": "Invalid reply target."}, status=400)
+    if len(content) > MAX_MESSAGE_LENGTH or not (content or upload):
+        return JsonResponse({"error": "Send text or a file; text is limited to 4000 characters."}, status=400)
+    metadata = {}
+    if upload:
+        try:
+            metadata = inspect_upload(upload, request.POST.get("kind", "file"))
+        except ValueError as exc:
+            return JsonResponse({"error": str(exc)}, status=400)
+    message = Message(group=group, sender=request.user, content=content, client_id=client_id,
+                      reply_to=reply_to, **metadata)
+    try:
+        with transaction.atomic():
+            if upload:
+                message.attachment.save(upload.name, upload, save=False)
+            message.save()
+    except Exception as exc:
+        if message.attachment:
+            message.attachment.delete(save=False)
+        if isinstance(exc, IntegrityError):
+            existing = Message.objects.filter(sender=request.user, client_id=client_id, group=group).select_related(
+                "sender__profile", "reply_to__sender").first()
+            if existing:
+                return JsonResponse(serialize_message(existing))
+        raise
+    data = serialize_message(message)
+    broadcast_group(group.pk, {"type": "message", **data})
+    broadcast_inbox(message)
+    return JsonResponse(data, status=201)
+
+
+@login_required
+@require_POST
+def group_mark_read(request, group_id):
+    group = member_group(request, group_id)
+    try:
+        through = int(request.POST.get("through", ""))
+        if through < 1:
+            raise ValueError
+    except ValueError:
+        return JsonResponse({"error": "Invalid read cursor."}, status=400)
+    maximum = group.messages.filter(pk__lte=through).order_by("-pk").values_list("pk", flat=True).first()
+    if maximum is None:
+        return JsonResponse({"updated": 0})
+    updated = GroupMembership.objects.filter(group=group, user=request.user, last_read_id__lt=maximum).update(
+        last_read_id=maximum)
+    return JsonResponse({"updated": updated})
 
 
 @login_required
@@ -211,12 +347,22 @@ def mark_read(request, chat_id):
 @login_required
 @require_GET
 def mobile_unread(request):
-    received = list(Message.objects.filter(receiver=request.user)
-                  .select_related("sender__profile", "reply_to__sender", "chat")
+    membership_query = GroupMembership.objects.filter(user=request.user, group_id=OuterRef("group_id"))
+    read_cursors = dict(GroupMembership.objects.filter(user=request.user).values_list("group_id", "last_read_id"))
+    received = list(Message.objects.filter(Q(receiver=request.user) |
+                                           Q(group_id__in=read_cursors,
+                                             timestamp__gte=Subquery(membership_query.values("joined_at")[:1])))
+                  .exclude(group__isnull=False, sender=request.user)
+                  .select_related("sender__profile", "reply_to__sender", "chat", "group")
                   .order_by("-id")[:50])
     return JsonResponse({"messages": [
-        {**serialize_message(message), "chat_id": str(message.chat.public_id),
-         "sender_profile_id": str(message.sender.profile.public_id)}
+        {**serialize_message(message), "chat_id": str(message.group.public_id if message.group_id else message.chat.public_id),
+         "destination": reverse("group_chat", args=[message.group.public_id]) if message.group_id else
+                        reverse("private_chat", args=[message.sender.profile.public_id]),
+         "sender_profile_id": str(message.sender.profile.public_id),
+         "is_read": (message.pk <= read_cursors[message.group_id])
+                    if message.group_id else message.is_read,
+         "sender": f"{message.sender.username} · {message.group.name}" if message.group_id else message.sender.username}
         for message in reversed(received)
     ], "user_id": str(request.user.profile.public_id)})
 
@@ -243,7 +389,8 @@ def presence_heartbeat(request):
 @login_required
 @require_GET
 def attachment(request, message_id):
-    message = get_object_or_404(Message.objects.filter(Q(chat__user1=request.user) | Q(chat__user2=request.user)),
+    message = get_object_or_404(Message.objects.filter(Q(chat__user1=request.user) | Q(chat__user2=request.user) |
+                                                       Q(group__members=request.user)).distinct(),
                                 public_id=message_id)
     return attachment_response(message, request.GET.get("download") == "1")
 

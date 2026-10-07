@@ -11,7 +11,7 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 
 from .forms import clean_avatar_upload
-from .models import Message, PrivateChat, Profile
+from .models import GroupChat, GroupMembership, Message, PrivateChat, Profile
 from .views import attachment_response
 
 admin.site.site_header = "Pulse administration"
@@ -86,9 +86,53 @@ class ParticipantFilter(admin.SimpleListFilter):
         value = (self.value() or "").strip()
         if not value:
             return queryset
-        fields = ("sender", "receiver") if queryset.model is Message else ("user1", "user2")
-        return queryset.filter(Q(**{f"{fields[0]}__username__iexact": value}) |
-                               Q(**{f"{fields[1]}__username__iexact": value}))
+        if queryset.model is Message:
+            return queryset.filter(Q(sender__username__iexact=value) |
+                                   Q(receiver__username__iexact=value) |
+                                   Q(group__members__username__iexact=value)).distinct()
+        return queryset.filter(Q(user1__username__iexact=value) | Q(user2__username__iexact=value))
+
+
+class GroupMembershipInline(admin.TabularInline):
+    model = GroupMembership
+    extra = 1
+    autocomplete_fields = ["user"]
+    readonly_fields = ["joined_at", "last_read_id"]
+
+
+@admin.register(GroupChat)
+class GroupChatAdmin(admin.ModelAdmin):
+    list_display = ["name", "member_count", "message_count", "created_by", "created_at"]
+    search_fields = ["name", "description", "members__username"]
+    list_filter = ["created_at"]
+    readonly_fields = ["public_id", "created_by", "created_at"]
+    inlines = [GroupMembershipInline]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(total_members=Count("members", distinct=True),
+                                                       total_messages=Count("messages", distinct=True))
+
+    @admin.display(description="Members", ordering="total_members")
+    def member_count(self, obj):
+        return obj.total_members
+
+    @admin.display(description="Messages", ordering="total_messages")
+    def message_count(self, obj):
+        return obj.total_messages
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+    def has_add_permission(self, request):
+        return request.user.is_superuser
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser
 
 
 class AttachmentFilter(admin.SimpleListFilter):
@@ -139,12 +183,12 @@ class PrivateChatAdmin(admin.ModelAdmin):
 
 @admin.register(Message)
 class MessageAdmin(admin.ModelAdmin):
-    list_display = ["id", "sender", "receiver", "kind", "short_preview", "file_size", "timestamp", "is_read", "attachment_link"]
+    list_display = ["id", "sender", "receiver", "group", "kind", "short_preview", "file_size", "timestamp", "is_read", "attachment_link"]
     list_filter = [ParticipantFilter, "kind", AttachmentFilter, "is_read", "timestamp",
                    ("sender", admin.RelatedOnlyFieldListFilter), ("receiver", admin.RelatedOnlyFieldListFilter)]
-    search_fields = ["sender__username", "receiver__username", "content", "original_name"]
-    list_select_related = ["sender", "receiver", "chat"]
-    readonly_fields = ["chat", "sender", "receiver", "reply_to", "content", "kind", "original_name",
+    search_fields = ["sender__username", "receiver__username", "group__name", "content", "original_name"]
+    list_select_related = ["sender", "receiver", "chat", "group"]
+    readonly_fields = ["chat", "group", "sender", "receiver", "reply_to", "content", "kind", "original_name",
                        "file_size", "mime_type", "timestamp", "client_id", "is_read", "public_id", "attachment_preview"]
     fields = readonly_fields
     date_hierarchy = "timestamp"

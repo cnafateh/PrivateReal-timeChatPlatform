@@ -41,10 +41,21 @@ def broadcast(chat_id, data):
         logger.exception("Could not broadcast conversation %s", chat_id)
 
 
+def broadcast_group(group_id, data):
+    try:
+        async_to_sync(get_channel_layer().group_send)(
+            f"group_chat_{group_id}", {"type": "chat_event", "data": data}
+        )
+    except Exception:
+        logger.exception("Could not broadcast group %s", group_id)
+
+
 def broadcast_inbox(message):
     try:
         layer = get_channel_layer()
-        for user_id in (message.sender_id, message.receiver_id):
+        user_ids = (message.group.members.values_list("id", flat=True)
+                    if message.group_id else (message.sender_id, message.receiver_id))
+        for user_id in user_ids:
             async_to_sync(layer.group_send)(
                 f"inbox_user_{user_id}", {"type": "inbox_event", "data": {"type": "inbox_update"}}
             )

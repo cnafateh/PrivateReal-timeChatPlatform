@@ -6,7 +6,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from django.db.models import Q
 from django.utils import timezone
 
-from .models import Message, PrivateChat, Profile
+from .models import GroupChat, Message, PrivateChat, Profile
 from .services import broadcast_inbox, serialize_message
 
 
@@ -127,3 +127,51 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def notify_inboxes(self, message_id):
         broadcast_inbox(Message.objects.get(pk=message_id))
+
+
+class GroupChatConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.chat_id = self.scope["url_route"]["kwargs"]["chat_id"]
+        self.last_typing = 0
+        if not await self.check_user_access():
+            await self.close(code=4403)
+            return
+        self.room_group_name = f"group_chat_{self.group_pk}"
+        await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "room_group_name"):
+            await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+    async def receive(self, text_data=None, bytes_data=None):
+        if not text_data or len(text_data) > 20000 or not await self.check_user_access():
+            return
+        try:
+            payload = json.loads(text_data)
+        except (ValueError, TypeError):
+            return
+        if isinstance(payload, dict) and payload.get("type") == "typing":
+            if time.monotonic() - self.last_typing < 2:
+                return
+            self.last_typing = time.monotonic()
+            await self.channel_layer.group_send(self.room_group_name, {
+                "type": "chat_event", "data": {"type": "typing", "sender_id": self.public_user_id}})
+
+    async def chat_event(self, event):
+        if await self.check_user_access():
+            await self.send(text_data=json.dumps(event["data"]))
+        else:
+            await self.close(code=4403)
+
+    @database_sync_to_async
+    def check_user_access(self):
+        user = self.scope["user"]
+        if not user.is_authenticated or not user.is_active:
+            return False
+        group = GroupChat.objects.filter(public_id=self.chat_id, members=user).first()
+        if group is None:
+            return False
+        self.group_pk = group.pk
+        self.public_user_id = str(user.profile.public_id)
+        return True

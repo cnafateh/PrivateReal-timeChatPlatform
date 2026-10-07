@@ -286,7 +286,7 @@ class ChatTests(TestCase):
             chat = PrivateChat.get_or_create_chat(self.alice, person)
             self.message(chat=chat, receiver=person)
         from .views import conversations
-        with self.assertNumQueries(2):
+        with self.assertNumQueries(3):
             self.assertEqual(len(conversations(self.alice)), 9)
 
     def test_script_content_is_safe_in_initial_json(self):
