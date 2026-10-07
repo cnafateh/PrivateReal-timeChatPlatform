@@ -8,6 +8,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, OuterRef, Q, Subquery
 from django.http import FileResponse, Http404, JsonResponse
 from django.urls import reverse
+from django.utils import timezone
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET, require_POST
@@ -226,6 +227,15 @@ def presence(request, public_id):
     profile = get_object_or_404(Profile, public_id=public_id, user__is_active=True)
     response = JsonResponse({"online": profile.is_online,
                              "last_seen": profile.last_seen.isoformat() if profile.last_seen else None})
+    response["Cache-Control"] = "private, no-store"
+    return response
+
+
+@login_required
+@require_POST
+def presence_heartbeat(request):
+    Profile.objects.filter(user=request.user).update(last_seen=timezone.now())
+    response = JsonResponse({"ok": True})
     response["Cache-Control"] = "private, no-store"
     return response
 

@@ -1,7 +1,8 @@
+{% load static %}
 <aside class="sidebar">
     <div class="sidebar-head">
         <div class="brand-row">
-            <a href="{% url 'inbox' %}" class="brand"><span class="brand-mark">P</span> Pulse</a>
+            <a href="{% url 'inbox' %}" class="brand"><span class="brand-mark"><img src="{% static 'images/favicon.png' %}" alt=""></span> Pulse</a>
             <a class="icon-button" href="{% url 'search_user' %}" aria-label="New chat" title="New chat">＋</a>
         </div>
         <a href="{% url 'search_user' %}" class="search-field">Search or start a conversation →</a>

@@ -61,7 +61,7 @@ object NotificationHandler {
         val tap = PendingIntent.getActivity(context, id.toInt(), intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         val notification = Notification.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_pulse)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(sender)
             .setContentText(preview)
             .setStyle(Notification.BigTextStyle().bigText(preview))

@@ -62,6 +62,9 @@ class BrowserTests(StaticLiveServerTestCase):
         expect(page.locator('.date-divider')).to_have_count(3)
         expect(page.locator('.date-divider').last).to_have_text('Today')
         expect(page.locator('.date-divider').nth(1)).to_have_text('Yesterday')
+        dividers = page.locator('.date-divider').evaluate_all(
+            '(items) => items.map(el => ({top: el.getBoundingClientRect().top, bottom: el.getBoundingClientRect().bottom}))')
+        self.assertTrue(all(left['bottom'] < right['top'] for left, right in zip(dividers, dividers[1:])))
         page.get_by_role('textbox', name='Message', exact=True).fill('A new message')
         page.get_by_role('button', name='Send message', exact=True).click()
         try:
@@ -118,6 +121,7 @@ class BrowserTests(StaticLiveServerTestCase):
             page.get_by_label("Username", exact=True).fill("alice")
             page.get_by_label("Password", exact=True).fill("browser-password")
             page.get_by_role("button", name="Sign in", exact=True).click()
+            page.wait_for_url(self.live_server_url + "/")
             page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
             composer = page.get_by_role("textbox", name="Message", exact=True)
             composer.fill("First line")
@@ -140,6 +144,7 @@ class BrowserTests(StaticLiveServerTestCase):
         from playwright.sync_api import expect
         page = self.page
         bubble = page.locator('.message-row.other .message-bubble').last
+        expect(page.locator('.message-actions:visible')).to_have_count(0)
         bounds = bubble.bounding_box()
         page.mouse.move(bounds['x'] + 20, bounds['y'] + 20)
         page.mouse.down()
@@ -150,7 +155,7 @@ class BrowserTests(StaticLiveServerTestCase):
         expect(page.locator('#reply-preview')).to_be_visible()
         expect(page.locator('.reply-button')).to_have_count(0)
         self.assertEqual(page.locator('.date-divider').first.evaluate(
-            '(el) => getComputedStyle(el).position'), 'relative')
+            '(el) => getComputedStyle(el).position'), 'static')
 
     def test_voice_record_preview_and_send(self):
         from playwright.sync_api import expect

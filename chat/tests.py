@@ -157,6 +157,17 @@ class ChatTests(TestCase):
         self.client.logout()
         self.assertEqual(self.client.get(url).status_code, 302)
 
+    def test_http_presence_heartbeat_updates_current_user_only(self):
+        self.assertIsNone(self.alice.profile.last_seen)
+        response = self.client.post(reverse("presence_heartbeat"))
+        self.assertEqual(response.status_code, 200)
+        self.alice.profile.refresh_from_db()
+        self.assertTrue(self.alice.profile.is_online)
+        self.bob.profile.refresh_from_db()
+        self.assertIsNone(self.bob.profile.last_seen)
+        self.client.logout()
+        self.assertEqual(self.client.post(reverse("presence_heartbeat")).status_code, 302)
+
     def test_inbox_updates_include_new_message_and_unread_count(self):
         url = reverse("inbox_updates")
         self.assertEqual(self.client.get(url).status_code, 200)

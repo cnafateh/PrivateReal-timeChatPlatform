@@ -131,11 +131,12 @@
         let holdTimer, startX, startY;
         bubble.addEventListener('pointerdown', event => {
             if (event.target.closest('a, button, audio')) return;
+            closeActions();
             startX = event.clientX; startY = event.clientY;
             holdTimer = setTimeout(() => showActions(actions), 450);
         });
         bubble.addEventListener('pointermove', event => {
-            if (Math.hypot(event.clientX - startX, event.clientY - startY) > 12) clearTimeout(holdTimer);
+            if (holdTimer && Math.hypot(event.clientX - startX, event.clientY - startY) > 12) clearTimeout(holdTimer);
         });
         ['pointerup', 'pointercancel', 'pointerleave'].forEach(type =>
             bubble.addEventListener(type, () => clearTimeout(holdTimer)));

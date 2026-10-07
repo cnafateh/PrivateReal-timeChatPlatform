@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [main, fix/mobile-reliability-and-presence]
+    branches: [main, fix/android-delivery-and-storage]
     tags: [android-v*]
     paths:
       - android/**

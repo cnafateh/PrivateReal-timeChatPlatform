@@ -197,7 +197,7 @@ class MainActivity : Activity() {
         val work = PeriodicWorkRequestBuilder<UnreadWorker>(15, TimeUnit.MINUTES)
             .setConstraints(constraints).build()
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "unread-messages", ExistingPeriodicWorkPolicy.KEEP, work)
+            "unread-messages", ExistingPeriodicWorkPolicy.UPDATE, work)
 
         if (savedInstanceState == null) webView.loadUrl(safeUrl(intent?.data))
         else webView.restoreState(savedInstanceState)
@@ -264,6 +264,9 @@ class MainActivity : Activity() {
         foregroundHandler.removeCallbacks(foregroundCheck)
         rememberSessionCookie()
         CookieManager.getInstance().flush()
+        WorkManager.getInstance(this).enqueueUniqueWork(
+            "background-transition-check", ExistingWorkPolicy.REPLACE,
+            OneTimeWorkRequestBuilder<UnreadWorker>().build())
         super.onPause()
     }
 
