@@ -8,7 +8,7 @@ from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, TransactionTestCase, override_settings
+from django.test import TransactionTestCase, override_settings
 from django.urls import reverse
 from PIL import Image
 
@@ -16,18 +16,15 @@ from .models import GroupChat, GroupMembership, Message
 from .consumers import GroupChatConsumer
 
 
-class GroupConversationTests(TestCase):
-    @classmethod
-    def setUpTestData(cls):
-        cls.admin = User.objects.create_superuser("admin", "admin@example.com", "password")
-        cls.alice = User.objects.create_user("alice", password="password")
-        cls.bob = User.objects.create_user("bob", password="password")
-        cls.outsider = User.objects.create_user("outsider", password="password")
-        cls.group = GroupChat.objects.create(name="Project room", created_by=cls.admin)
-        GroupMembership.objects.create(group=cls.group, user=cls.alice)
-        GroupMembership.objects.create(group=cls.group, user=cls.bob)
-
+class GroupConversationTests(TransactionTestCase):
     def setUp(self):
+        self.admin = User.objects.create_superuser("admin", "admin@example.com", "password")
+        self.alice = User.objects.create_user("alice", password="password")
+        self.bob = User.objects.create_user("bob", password="password")
+        self.outsider = User.objects.create_user("outsider", password="password")
+        self.group = GroupChat.objects.create(name="Project room", created_by=self.admin)
+        GroupMembership.objects.create(group=self.group, user=self.alice)
+        GroupMembership.objects.create(group=self.group, user=self.bob)
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
         setting = override_settings(MEDIA_ROOT=directory.name)
