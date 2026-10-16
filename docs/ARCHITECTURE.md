@@ -55,7 +55,7 @@ All chat endpoints require a session. URL path identifiers are random UUIDv4 val
 | GET | `/people/<profile_uuid>/` | View an active user’s profile |
 | GET | `/people/<profile_uuid>/avatar/` | Authenticated uploaded photo |
 | POST | `/logout/` | End the session |
-| GET | `/monitir/` | Private operational dashboard for active superusers |
+| GET | `/monitor/` | Private operational dashboard for active superusers |
 
 History returns `{messages: [...], has_more: boolean}`. Invalid payloads return JSON errors with HTTP 400; oversized request bodies return 413; outsiders receive 404. Unauthenticated sessions redirect to login, which the browser client recognizes as an expired session.
 
@@ -79,7 +79,7 @@ This does not provide malware scanning, end-to-end encryption, full media transc
 
 ## Operations and security boundaries
 
-The monitor middleware records aggregate HTTP status and latency per hour in Redis with a 48-hour TTL. `/monitir/` checks database, Redis and private media storage and shows only a superuser the request buckets, app totals and bounded recent server-error routes. Metrics omit full URLs, user identities and message text. See [monitoring](MONITORING.md) and the [security review](SECURITY_REVIEW.md).
+The monitor middleware records aggregate HTTP status and latency per hour in Redis with a 48-hour TTL. `/monitor/` checks database, Redis and private media storage and shows only a superuser the request buckets, app totals and bounded recent server-error routes. Metrics omit full URLs, user identities and message text. See [monitoring](MONITORING.md) and the [security review](SECURITY_REVIEW.md).
 
 Redis also stores a short-lived failed-login counter keyed by a hash of the account name and server secret. Ten failures in 15 minutes temporarily stop further login attempts for that name. This is not a substitute for proxy-level rate limiting, especially if Redis is down.
 

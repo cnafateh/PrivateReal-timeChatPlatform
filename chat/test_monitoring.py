@@ -88,6 +88,7 @@ class MonitorTests(TestCase):
 
     def test_monitor_is_superuser_only_and_uncacheable(self):
         url = reverse("monitor")
+        self.assertEqual(url, "/monitor/")
         self.assertEqual(self.client.get(url).status_code, 403)
         self.client.force_login(self.staff)
         self.assertEqual(self.client.get(url).status_code, 403)
