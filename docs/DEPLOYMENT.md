@@ -4,13 +4,13 @@ This document explains why each production component is present before listing i
 
 ## Deploy with the existing external networks
 
-The repository includes [`compose.production.yml`](../compose.production.yml) for a host that already has `database`, `proxy`, and `my_shared_network`. It runs the published `ghcr.io/cnafateh/chatapp:v1.2.0-rc1` image and Redis, and binds `/srv/chatapp/media` to `/app/media`. Your existing database and reverse proxy remain outside this Compose project. The `.env` must name a reachable `DB_HOST`, database credentials, public host and CSRF origin, and production security settings. A network connection alone does not persist or share files; see [media migration](STORAGE.md) before starting this Compose file.
+The repository includes [`compose.production.yml`](../compose.production.yml) for a host that already has `database`, `proxy`, and `my_shared_network`. It runs the published `ghcr.io/cnafateh/chatapp:latest` image and Redis, and binds `/srv/chatapp/media` to `/app/media`. Your existing database and reverse proxy remain outside this Compose project. The `.env` must name a reachable `DB_HOST`, database credentials, public host and CSRF origin, and production security settings. A network connection alone does not persist or share files; see [media migration](STORAGE.md) before starting this Compose file.
 
 1. Inspect the old container's `/app/media` and take a database/media backup.
 2. Copy media into `/srv/chatapp/media`, set ownership to the container's application UID/GID, and confirm the copy.
 3. Put `compose.production.yml` and the production `.env` in the same server directory. Check `docker compose -f compose.production.yml config --quiet`.
 4. Start the stack and verify the mount, migrations, two-way chat, uploaded avatars, attachments, and WebSocket upgrade through the public HTTPS proxy.
-5. Keep the previous media source until a restore test succeeds. After merging the PR, the `main` workflow publishes the same code as `ghcr.io/cnafateh/chatapp:latest`; change the Compose tag only after that image succeeds.
+5. Keep the previous media source until a restore test succeeds. After merging the PR, wait for the `main` workflow to publish `ghcr.io/cnafateh/chatapp:latest`, then pull and restart the Compose service.
 
 If the File Browser service needs the files, mount `/srv/chatapp/media` into it read-only. `my_shared_network` is included for network reachability, but does not grant filesystem access.
 
@@ -27,6 +27,7 @@ If the File Browser service needs the files, mount `/srv/chatapp/media` into it 
 | `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_PORT` | PostgreSQL connection settings. |
 | `MEDIA_ROOT` | Optional filesystem media root; defaults to `BASE_DIR/media`. Must match the persistent mount. |
 | `REDIS_URL` | Full Redis URL, including authentication, database number or `rediss://` when needed. Empty selects a single-process in-memory channel layer. |
+| `USE_X_FORWARDED_HOST` | Off by default. Enable only when a trusted proxy must supply the public host in this header. The example Nginx passes the ordinary `Host` header. |
 | `SECURE_SSL_REDIRECT` | Redirect HTTP to HTTPS when your proxy correctly forwards the scheme. |
 | `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE` | Set both to `True` for HTTPS deployments. |
 | `SECURE_HSTS_SECONDS` | Enable after confirming HTTPS works reliably. |
@@ -45,6 +46,8 @@ The optional existing `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL` and 
 7. Back up PostgreSQL and `/app/media` together. Never add a public Nginx `alias` or Django media URL pattern for private uploads.
 8. Run `python manage.py check --deploy` under the production environment.
 9. Monitor disk usage, application errors and Redis/database availability.
+
+`compose.production.yml` forces `DEBUG=False` and secure session/CSRF cookies. It will reject the example placeholder secret. Replace it with a strong unique secret before deployment. Verify that your reverse proxy passes the public `Host` header. Open `/monitir/` as a superuser to inspect initial HTTP, database, Redis and media status; see [monitoring](MONITORING.md) for interpretation and limits. Review the [security checklist](SECURITY_REVIEW.md) before changing access or storage configuration.
 
 ## Persistent storage
 

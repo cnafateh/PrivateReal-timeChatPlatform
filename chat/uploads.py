@@ -25,7 +25,8 @@ class UploadLimitMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.method == "POST" and (request.path.startswith("/api/chats/") or request.path == "/profile/edit/"):
+        if request.method == "POST" and (request.path.startswith(("/api/chats/", "/api/groups/"))
+                                        or request.path == "/profile/edit/"):
             try:
                 length = int(request.META.get("CONTENT_LENGTH") or 0)
             except ValueError:

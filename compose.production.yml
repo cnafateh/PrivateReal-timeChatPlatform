@@ -2,10 +2,13 @@
 # into the host directory before enabling this mount; see docs/STORAGE.md.
 services:
   web:
-    image: ghcr.io/cnafateh/chatapp:v1.2.0-rc1
+    image: ghcr.io/cnafateh/chatapp:latest
     container_name: chatapp
     env_file: .env
     environment:
+      DEBUG: "False"
+      SESSION_COOKIE_SECURE: "True"
+      CSRF_COOKIE_SECURE: "True"
       MEDIA_ROOT: /app/media
       REDIS_URL: redis://redis:6379/0
     volumes:
@@ -41,7 +44,7 @@ services:
 
   media-permissions:
     profiles: [maintenance]
-    image: ghcr.io/cnafateh/chatapp:v1.2.0-rc1
+    image: ghcr.io/cnafateh/chatapp:latest
     user: "0:0"
     entrypoint: ["/bin/sh", "-ec"]
     command: ["chown -R app:app /app/media && chmod -R u+rwX /app/media"]

@@ -7,6 +7,8 @@ from unittest.mock import patch
 
 from asgiref.sync import async_to_sync
 from channels.testing import WebsocketCommunicator
+from channels.db import database_sync_to_async
+from channels.layers import get_channel_layer
 from django.contrib.auth.models import AnonymousUser, User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError, transaction
@@ -377,6 +379,36 @@ class SocketTests(TransactionTestCase):
                 connected, code = await socket.connect()
                 self.assertFalse(connected)
                 self.assertEqual(code, 4403)
+                await socket.disconnect()
+        async_to_sync(run)()
+
+    def test_disabled_account_loses_existing_inbox_socket(self):
+        async def run():
+            socket = self.inbox_socket(self.alice)
+            self.assertTrue((await socket.connect())[0])
+            try:
+                await database_sync_to_async(User.objects.filter(pk=self.alice.pk).update)(is_active=False)
+                await get_channel_layer().group_send(f"inbox_user_{self.alice.pk}", {
+                    "type": "inbox_event", "data": {"type": "inbox_update"}})
+                output = await socket.receive_output()
+                self.assertEqual(output["type"], "websocket.close")
+                self.assertEqual(output["code"], 4403)
+            finally:
+                await socket.disconnect()
+        async_to_sync(run)()
+
+    def test_disabled_participant_cannot_keep_private_socket(self):
+        async def run():
+            socket = self.socket(self.alice)
+            self.assertTrue((await socket.connect())[0])
+            try:
+                await database_sync_to_async(User.objects.filter(pk=self.bob.pk).update)(is_active=False)
+                await get_channel_layer().group_send(f"private_chat_{self.chat.pk}", {
+                    "type": "chat_event", "data": {"type": "message", "message": "Hidden"}})
+                output = await socket.receive_output()
+                self.assertEqual(output["type"], "websocket.close")
+                self.assertEqual(output["code"], 4403)
+            finally:
                 await socket.disconnect()
         async_to_sync(run)()
 

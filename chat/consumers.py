@@ -3,6 +3,7 @@ import time
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.contrib.auth.models import User
 from django.db.models import Q
 from django.utils import timezone
 
@@ -28,20 +29,26 @@ class InboxConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def inbox_event(self, event):
-        await self.send(text_data=json.dumps(event["data"]))
+        if await self.active_user_id() is None:
+            await self.close(code=4403)
+        else:
+            await self.send(text_data=json.dumps(event["data"]))
 
     async def receive(self, text_data=None, bytes_data=None):
         if text_data != '{"type":"heartbeat"}' or not hasattr(self, "room_group_name"):
             return
         now = time.monotonic()
         if now - self.last_heartbeat >= 20:
+            if await self.active_user_id() is None:
+                await self.close(code=4403)
+                return
             self.last_heartbeat = now
             await self.touch_presence(self.user_id)
 
     @database_sync_to_async
     def active_user_id(self):
         user = self.scope["user"]
-        return user.pk if user.is_authenticated and user.is_active else None
+        return user.pk if user.is_authenticated and User.objects.filter(pk=user.pk, is_active=True).exists() else None
 
     @database_sync_to_async
     def touch_presence(self, user_id):
@@ -90,15 +97,19 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
             await self.notify_inboxes(message["id"])
 
     async def chat_event(self, event):
-        await self.send(text_data=json.dumps(event["data"]))
+        if await self.check_user_access():
+            await self.send(text_data=json.dumps(event["data"]))
+        else:
+            await self.close(code=4403)
 
     @database_sync_to_async
     def check_user_access(self):
         user = self.scope["user"]
-        if not user.is_authenticated:
+        if not user.is_authenticated or not user.is_active:
             return False
         chat = PrivateChat.objects.filter(
-            Q(user1_id=user.pk, user1__is_active=True) | Q(user2_id=user.pk, user2__is_active=True),
+            Q(user1_id=user.pk) | Q(user2_id=user.pk),
+            user1__is_active=True, user2__is_active=True,
             public_id=self.chat_id).first()
         if not chat:
             return False
@@ -110,7 +121,8 @@ class PrivateChatConsumer(AsyncWebsocketConsumer):
     def save_message(self, content, reply_id):
         user = self.scope["user"]
         chat = PrivateChat.objects.select_related("user1__profile", "user2__profile").filter(
-            Q(user1_id=user.pk) | Q(user2_id=user.pk), public_id=self.chat_id).first()
+            Q(user1_id=user.pk) | Q(user2_id=user.pk), public_id=self.chat_id,
+            user1__is_active=True, user2__is_active=True).first()
         if not chat:
             return None
         reply_to = None
