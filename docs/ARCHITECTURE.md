@@ -13,6 +13,8 @@ Django handles authentication, page rendering, history, attachment uploads and d
 
 Text drafts live in session storage, scoped to the user, conversation and browser tab. File selections and recordings are not persisted. A failed request keeps its UUID and payload for retry; a changed payload receives a new UUID.
 
+The Android shell records voice through the platform microphone API and passes the completed M4A file to the same upload form. Uploaded profile photos have a version query derived from their random storage name and a private month-long device cache header; replacements generate a different URL.
+
 ## Data model
 
 - `PrivateChat`: a random public UUID, two ordered user foreign keys, one unique pair and a creation time.
@@ -53,6 +55,7 @@ All chat endpoints require a session. URL path identifiers are random UUIDv4 val
 | GET | `/people/<profile_uuid>/` | View an active user’s profile |
 | GET | `/people/<profile_uuid>/avatar/` | Authenticated uploaded photo |
 | POST | `/logout/` | End the session |
+| GET | `/monitir/` | Private operational dashboard for active superusers |
 
 History returns `{messages: [...], has_more: boolean}`. Invalid payloads return JSON errors with HTTP 400; oversized request bodies return 413; outsiders receive 404. Unauthenticated sessions redirect to login, which the browser client recognizes as an expired session.
 
@@ -73,6 +76,12 @@ Message payloads contain `id`, `sender_id`, `sender`, `message`, `timestamp`, `k
 A streaming upload handler stops individual files beyond 5 MiB; the view independently verifies non-empty size. Nginx limits the full request to 6 MiB. Files receive random storage names, and original names are metadata only. Pillow verifies raster image contents. Voice containers are identified by their headers. General files, including HTML and SVG, are binary downloads with `nosniff`; private responses use `no-store` and a restrictive sandbox CSP.
 
 This does not provide malware scanning, end-to-end encryption, full media transcoding or per-user storage quotas. Production operators should apply their own retention and abuse controls.
+
+## Operations and security boundaries
+
+The monitor middleware records aggregate HTTP status and latency per hour in Redis with a 48-hour TTL. `/monitir/` checks database, Redis and private media storage and shows only a superuser the request buckets, app totals and bounded recent server-error routes. Metrics omit full URLs, user identities and message text. See [monitoring](MONITORING.md) and the [security review](SECURITY_REVIEW.md).
+
+Redis also stores a short-lived failed-login counter keyed by a hash of the account name and server secret. Ten failures in 15 minutes temporarily stop further login attempts for that name. This is not a substitute for proxy-level rate limiting, especially if Redis is down.
 
 
 ## Profiles and avatar selection

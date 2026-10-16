@@ -79,10 +79,17 @@ class ProfileTests(TestCase):
             self.assertEqual(image.size, (512, 384))
             self.assertNotIn("comment", image.info)
         url = reverse("profile_avatar", args=[profile.public_id])
+        versioned_url = profile.avatar_url
+        self.assertIn("?v=", versioned_url)
         self.client.force_login(self.bob)
         response = self.client.get(url)
         self.assertEqual(response["Content-Type"], "image/png")
+        self.assertEqual(response["Cache-Control"], "private, no-cache")
         list(response.streaming_content)
+        response = self.client.get(versioned_url)
+        self.assertIn("max-age=2592000", response["Cache-Control"])
+        self.assertEqual(response["Vary"], "Cookie")
+        response.close()
         self.client.force_login(self.alice)
         old_name = profile.avatar.name
         with self.captureOnCommitCallbacks(execute=True):

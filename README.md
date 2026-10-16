@@ -22,6 +22,7 @@ A self-hosted, real-time private messenger built with Django and Channels.
 - Recovery of missed messages through periodic history synchronization; repeat requests do not duplicate messages.
 - Per-conversation text drafts in the current browser tab, multiline text, bidirectional message text and responsive layouts.
 - Administration with image/audio previews, protected file downloads and combined participant, sender, recipient, attachment, type, date and read-state filters.
+- Superuser-only operational dashboard at `/monitir/` with service checks, request/error trends, and application activity.
 
 ## Run locally
 
@@ -44,6 +45,8 @@ python manage.py runserver
 
 Open <http://localhost:8000>. Register a second account in another browser profile, search for its username and start a conversation. The administration panel is at `/admin/`.
 
+For operations, open `/monitir/` as a superuser. Redis-backed request metrics are available when `REDIS_URL` is configured; local SQLite development still shows database, media, and application checks. Read the [monitoring guide](docs/MONITORING.md) and [security review](docs/SECURITY_REVIEW.md) before production use.
+
 To create a group, sign in to `/admin/` as a superuser, open **Group chats**, add a name and save it with members in the Members section. Members see the group in their conversation list; only superusers can change its membership.
 
 Local `.env` files are ignored by Git and Docker. Set your own `DJANGO_SECRET_KEY`. Never reuse the example credentials on a public deployment.
@@ -61,7 +64,7 @@ Open <http://localhost:8080>. Compose starts Django/Daphne, PostgreSQL, Redis an
 
 For public hosting and upgrades, follow [deployment instructions](docs/DEPLOYMENT.md). The provided Compose file binds to localhost; configure your trusted HTTPS proxy before exposing the service.
 
-For a server with external database and proxy networks, use [the production Compose example](compose.production.yml) after following the [media migration guide](docs/STORAGE.md). It keeps uploaded avatars and attachments in `/srv/chatapp/media` on the host. The review image is `ghcr.io/cnafateh/chatapp:v1.2.0-rc1`; `latest` is published from `main` after merge.
+For a server with external database and proxy networks, use [the production Compose example](compose.production.yml) after following the [media migration guide](docs/STORAGE.md). It keeps uploaded avatars and attachments in `/srv/chatapp/media` on the host. The `latest` image is published from `main` after tests pass.
 
 ## Tests
 

@@ -3,3 +3,4 @@
 {% block title %}{{ title }} | Pulse Admin{% endblock %}
 {% block branding %}<div id="site-name"><a href="{% url 'admin:index' %}">Pulse <span class="admin-label">ADMINISTRATION</span></a></div>{% if user.is_anonymous %}{% include "admin/color_theme_toggle.html" %}{% endif %}{% endblock %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/admin.css' %}">{% endblock %}
+{% block userlinks %}{% if user.is_superuser %}<a href="{% url 'monitor' %}">Operations</a> / {% endif %}{{ block.super }}{% endblock %}
