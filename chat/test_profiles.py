@@ -89,7 +89,7 @@ class ProfileTests(TestCase):
         response = self.client.get(versioned_url)
         self.assertIn("max-age=2592000", response["Cache-Control"])
         self.assertEqual(response["Vary"], "Cookie")
-        response.close()
+        list(response.streaming_content)
         self.client.force_login(self.alice)
         old_name = profile.avatar.name
         with self.captureOnCommitCallbacks(execute=True):

@@ -12,6 +12,10 @@ This review covers the Django HTTP and WebSocket entry points, file handling, An
 | Development mode | Missing `DEBUG` configuration selected development mode. | Default to `False`, so production startup needs a configured secret. The example `.env` still explicitly enables development mode for local use. |
 | Android microphone | Browser media capture inside WebView could fail after permission was granted. | Record through Android's microphone API in the native shell, with explicit runtime permission and temporary private cache storage. |
 | Avatar delivery | Every authenticated avatar response disabled caching, leading to repeated downloads. | Give uploads versioned URLs and private device caching. A changed file gets a new URL; unversioned requests must revalidate. |
+| Python dependencies | The pinned Django, Daphne, Pillow, and python-dotenv versions had published advisories. | Upgrade to patched releases and add a `pip-audit` check to CI. |
+| Image publishing | The Docker publish workflow also allowed pushes to an obsolete review branch. | Publish the production image only from `main` after its required tests pass. |
+
+The dependency audit still reports [GHSA-8pqf-f4m5-798g](https://github.com/advisories/GHSA-8pqf-f4m5-798g) in Twisted, a Daphne transitive dependency. The advisory affects Twisted's IMAP wildcard parser; this application does not start an IMAP server or call that parser. No patched Twisted release is listed as of this review, so CI explicitly ignores this one advisory while checking every other dependency. Revisit the exception when a patched Twisted release is available or the application's use of Twisted changes.
 
 ## Existing controls checked
 

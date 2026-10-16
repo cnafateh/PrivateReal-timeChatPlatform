@@ -9,6 +9,7 @@
 - Cache versioned profile photos privately on the device and invalidate them when a photo changes.
 - Limit failed login attempts with Redis, enforce group upload limits at the streaming boundary, and revoke event delivery to disabled WebSocket accounts.
 - Default unspecified production debug mode to off and avoid trusting forwarded host headers unless explicitly configured.
+- Upgrade security-affected Python dependencies and audit requirement pins in CI.
 
 ### Group conversations and Android alerts
 
