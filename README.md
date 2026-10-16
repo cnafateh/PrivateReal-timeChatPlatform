@@ -22,7 +22,7 @@ A self-hosted, real-time private messenger built with Django and Channels.
 - Recovery of missed messages through periodic history synchronization; repeat requests do not duplicate messages.
 - Per-conversation text drafts in the current browser tab, multiline text, bidirectional message text and responsive layouts.
 - Administration with image/audio previews, protected file downloads and combined participant, sender, recipient, attachment, type, date and read-state filters.
-- Superuser-only operational dashboard at `/monitir/` with service checks, request/error trends, and application activity.
+- Superuser-only operational dashboard at `/monitor/` with service checks, request/error trends, and application activity.
 
 ## Run locally
 
@@ -45,7 +45,7 @@ python manage.py runserver
 
 Open <http://localhost:8000>. Register a second account in another browser profile, search for its username and start a conversation. The administration panel is at `/admin/`.
 
-For operations, open `/monitir/` as a superuser. Redis-backed request metrics are available when `REDIS_URL` is configured; local SQLite development still shows database, media, and application checks. Read the [monitoring guide](docs/MONITORING.md) and [security review](docs/SECURITY_REVIEW.md) before production use.
+For operations, open `/monitor/` as a superuser. Redis-backed request metrics are available when `REDIS_URL` is configured; local SQLite development still shows database, media, and application checks. Read the [monitoring guide](docs/MONITORING.md) and [security review](docs/SECURITY_REVIEW.md) before production use.
 
 To create a group, sign in to `/admin/` as a superuser, open **Group chats**, add a name and save it with members in the Members section. Members see the group in their conversation list; only superusers can change its membership.
 

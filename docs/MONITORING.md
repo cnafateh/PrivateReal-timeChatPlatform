@@ -1,6 +1,6 @@
 # Operational monitoring
 
-Open `/monitir/` as an active superuser. The page refreshes every minute and sends `Cache-Control: no-store`. Ordinary users, staff users without superuser status, and signed-out visitors receive HTTP 403. A link is available from the admin header.
+Open `/monitor/` as an active superuser. The page refreshes every minute and sends `Cache-Control: no-store`. Ordinary users, staff users without superuser status, and signed-out visitors receive HTTP 403. A link is available from the admin header.
 
 ## What the first version measures
 

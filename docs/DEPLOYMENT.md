@@ -47,7 +47,7 @@ The optional existing `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL` and 
 8. Run `python manage.py check --deploy` under the production environment.
 9. Monitor disk usage, application errors and Redis/database availability.
 
-`compose.production.yml` forces `DEBUG=False` and secure session/CSRF cookies. It will reject the example placeholder secret. Replace it with a strong unique secret before deployment. Verify that your reverse proxy passes the public `Host` header. Open `/monitir/` as a superuser to inspect initial HTTP, database, Redis and media status; see [monitoring](MONITORING.md) for interpretation and limits. Review the [security checklist](SECURITY_REVIEW.md) before changing access or storage configuration.
+`compose.production.yml` forces `DEBUG=False` and secure session/CSRF cookies. It will reject the example placeholder secret. Replace it with a strong unique secret before deployment. Verify that your reverse proxy passes the public `Host` header. Open `/monitor/` as a superuser to inspect initial HTTP, database, Redis and media status; see [monitoring](MONITORING.md) for interpretation and limits. Review the [security checklist](SECURITY_REVIEW.md) before changing access or storage configuration.
 
 ## Persistent storage
 
