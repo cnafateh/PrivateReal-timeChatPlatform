@@ -9,6 +9,7 @@
     let socket, retry = 0, reconnectTimer, syncing = false, sending = false, closed = false;
     let selectedFile = null, selectedKind = 'file', previewUrl, pendingId, pendingFingerprint, replyTarget = null;
     let recorder, recordingStream, recordingTimer, recordingSeconds = 0, typingTimer, readTimer;
+    let nativeVoiceState = 'idle', nativeVoiceListener = null, nativeVoiceChunks = [];
     let lastTyping = 0, readThrough = 0, keepLatestUntil = 0, openActions = null;
     function messageId() {
         if (crypto.randomUUID) return crypto.randomUUID();
@@ -263,7 +264,7 @@
     }
     async function submit(event) {
         event.preventDefault();
-        if (sending || (recorder && recorder.state === 'recording')) return;
+        if (sending || nativeVoiceState !== 'idle' || (recorder && recorder.state === 'recording')) return;
         input.focus({preventScroll: true});
         const original = input.value;
         const text = original.trim();
@@ -290,6 +291,10 @@
         }
     }
     async function recordVoice() {
+        if (window.PulseBridge) {
+            recordNativeVoice();
+            return;
+        }
         if (recorder && recorder.state === 'recording') { recorder.stop(); return; }
         if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
             error('Voice recording requires HTTPS (or localhost) and a browser with microphone support.'); return;
@@ -343,6 +348,71 @@
             error(exc.name === 'NotAllowedError' ? 'Microphone permission was denied. Allow access in your browser and try again.' : exc.message);
         } finally { $('voice-button').disabled = false; }
     }
+    function recordNativeVoice() {
+        const bridge = window.PulseBridge;
+        if (nativeVoiceState === 'recording') {
+            nativeVoiceState = 'stopping';
+            bridge.postMessage(JSON.stringify({type:'voice_stop'}));
+            return;
+        }
+        if (nativeVoiceState !== 'idle') return;
+        nativeVoiceState = 'starting'; nativeVoiceChunks = [];
+        $('voice-button').disabled = true;
+        const startTimeout = setTimeout(() => {
+            if (nativeVoiceState === 'starting') {
+                bridge.postMessage(JSON.stringify({type:'voice_cancel'}));
+                finish('Microphone did not respond. Check Android microphone access and try again.');
+            }
+        }, 15000);
+        function finish(message) {
+            clearTimeout(startTimeout);
+            clearInterval(recordingTimer);
+            bridge.removeEventListener('message', nativeVoiceListener);
+            nativeVoiceListener = null;
+            nativeVoiceState = 'idle';
+            $('voice-button').disabled = false;
+            $('voice-button').classList.remove('recording');
+            $('voice-button').setAttribute('aria-label', 'Record voice message');
+            $('voice-button').title = 'Record voice message';
+            $('attach-button').disabled = false; send.disabled = false;
+            if (message) error(message);
+        }
+        nativeVoiceListener = event => {
+            let data;
+            try { data = JSON.parse(event.data); } catch (_) { return; }
+            if (data.type === 'voice_started') {
+                clearTimeout(startTimeout);
+                nativeVoiceState = 'recording'; recordingSeconds = 0; error();
+                $('voice-button').disabled = false;
+                $('voice-button').classList.add('recording');
+                $('voice-button').setAttribute('aria-label', 'Stop recording');
+                $('voice-button').title = 'Stop recording';
+                $('attach-button').disabled = true; send.disabled = true;
+                $('record-status').textContent = 'Recording… press the microphone to stop.';
+                recordingTimer = setInterval(() => {
+                    recordingSeconds++;
+                    $('record-status').textContent = `Recording ${Math.floor(recordingSeconds / 60)}:${String(recordingSeconds % 60).padStart(2, '0')} · Tap microphone to stop`;
+                    if (recordingSeconds >= 300 && nativeVoiceState === 'recording') recordNativeVoice();
+                }, 1000);
+            } else if (data.type === 'voice_chunk') {
+                const binary = atob(data.detail);
+                nativeVoiceChunks.push(Uint8Array.from(binary, character => character.charCodeAt(0)));
+            } else if (data.type === 'voice_complete') {
+                const file = new File(nativeVoiceChunks, `voice-${Date.now()}.m4a`, {type:'audio/mp4'});
+                nativeVoiceChunks = [];
+                finish();
+                if (file.size) {
+                    chooseFile(file, 'voice');
+                    $('record-status').textContent = 'Listen to your recording, then press Send.';
+                } else error('Recording was empty. Please try again.');
+            } else if (data.type === 'voice_error') {
+                nativeVoiceChunks = [];
+                finish(data.detail || 'Recording failed. Please try again.');
+            }
+        };
+        bridge.addEventListener('message', nativeVoiceListener);
+        bridge.postMessage(JSON.stringify({type:'voice_start'}));
+    }
     $('composer').addEventListener('submit', submit);
     document.addEventListener('pointerdown', event => {
         if (openActions && !openActions.contains(event.target)) closeActions();
@@ -383,11 +453,12 @@
     document.addEventListener('visibilitychange', () => { if (!document.hidden) { groupDays(); sync(); scheduleRead(); } });
     window.addEventListener('online', () => { clearTimeout(reconnectTimer); if (!socket || socket.readyState === WebSocket.CLOSED) connect(); sync(); });
     window.addEventListener('beforeunload', event => {
-        if (selectedFile || sending || recorder?.state === 'recording') { event.preventDefault(); event.returnValue = ''; }
+        if (selectedFile || sending || nativeVoiceState !== 'idle' || recorder?.state === 'recording') { event.preventDefault(); event.returnValue = ''; }
     });
     window.addEventListener('pagehide', () => {
         closed = true; clearTimeout(reconnectTimer); clearInterval(recordingTimer); socket?.close();
         recordingStream?.getTracks().forEach(track => track.stop());
+        if (nativeVoiceState !== 'idle') window.PulseBridge?.postMessage(JSON.stringify({type:'voice_cancel'}));
     });
     window.addEventListener('pageshow', event => { if (event.persisted) { closed = false; connect(); } });
     try { input.value = sessionStorage.getItem(`pulse-draft-${config.userId}-${config.chatId}`) || ''; } catch (_) { /* Storage is optional. */ }

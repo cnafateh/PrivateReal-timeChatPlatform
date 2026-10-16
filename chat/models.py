@@ -137,7 +137,8 @@ class Profile(models.Model):
     @property
     def avatar_url(self):
         if self.avatar:
-            return reverse("profile_avatar", args=[self.public_id])
+            version = hashlib.sha256(self.avatar.name.encode("utf-8")).hexdigest()[:16]
+            return f"{reverse('profile_avatar', args=[self.public_id])}?v={version}"
         if self.use_gravatar and self.user.email.strip():
             digest = hashlib.sha256(self.user.email.strip().lower().encode("utf-8")).hexdigest()
             return f"https://gravatar.com/avatar/{digest}?s=160&d=404&r=g"

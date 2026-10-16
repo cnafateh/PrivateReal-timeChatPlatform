@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Operations, Android audio and security
+
+- Add a private operations dashboard with database, Redis and media checks, 24-hour HTTP trends, and bounded server-error summaries.
+- Record Android voice messages natively as temporary AAC/M4A files, then reuse the existing chat upload flow.
+- Cache versioned profile photos privately on the device and invalidate them when a photo changes.
+- Limit failed login attempts with Redis, enforce group upload limits at the streaming boundary, and revoke event delivery to disabled WebSocket accounts.
+- Default unspecified production debug mode to off and avoid trusting forwarded host headers unless explicitly configured.
+- Upgrade security-affected Python dependencies and audit requirement pins in CI.
+
 ### Group conversations and Android alerts
 
 - Let superusers create groups and manage members in Django admin; members can use the existing text, reply, attachment and voice composer.

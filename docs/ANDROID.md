@@ -1,6 +1,6 @@
 # Android application: architecture and releases
 
-The Android project lives in `android/` in this repository. It uses the existing responsive chat interface inside a locked-down WebView, so message rendering, replies, themes, profiles, uploads and voice recording match the website. The native shell supplies file selection, microphone permission, private downloads, deep links and notifications. It connects only to `https://chat.sinafateh.ir/` for app pages; external links open in the device browser. TLS errors are never bypassed.
+The Android project lives in `android/` in this repository. It uses the existing responsive chat interface inside a locked-down WebView, so message rendering, replies, themes, profiles and uploads match the website. The native shell supplies voice recording, file selection, private downloads, deep links and notifications. It connects only to `https://chat.sinafateh.ir/` for app pages; external links open in the device browser. TLS errors are never bypassed.
 
 ## Why a WebView wrapper?
 
@@ -34,6 +34,12 @@ While the app is open, an inbox WebSocket prompts a notification check immediate
 
 This does not provide instant push delivery while the app is closed. Instant push would require a push provider, server-side device token registration and delivery, and deployment credentials. The chat view and conversation list use WebSockets for immediate updates while a page is open. They also refresh after reconnecting or returning to the app.
 
+## Voice and avatar cache
+
+The Android voice button asks the native shell to record. Android requests microphone permission, then `MediaRecorder` captures AAC audio in an M4A container into the app's private temporary cache. Stopping sends bounded base64 chunks through the origin-restricted WebView bridge; browser JavaScript rebuilds a file for the existing preview and HTTP upload path. The temporary native file is deleted after completion or cancellation. Recording is limited to five minutes in the UI and checked again against the 5 MiB server upload limit. This avoids devices where WebView's `getUserMedia` cannot start its audio source. Browser users continue to use browser media capture. Test microphone permission, record/stop, preview, send and playback on a physical Android device: the CI emulator cannot validate physical audio input.
+
+Uploaded profile photos have versioned URLs. The server sends `Cache-Control: private, max-age=2592000, immutable` for a matching version, so WebView can keep them in its device disk cache. A new photo changes the URL automatically; unversioned requests revalidate. Private files remain protected by the session and are not placed in a public CDN. Android may evict disk cache under storage pressure, so a later download is still possible.
+
 To diagnose a missing background alert, first confirm the app is signed in and allowed to show notifications. Then check battery restrictions for Pulse and wait beyond the 15-minute minimum interval; the actual execution time is not exact. A force-stopped app will not run its jobs until opened again. Test with two accounts, and do not mark the incoming message read before the first check. If immediate delivery is a product requirement, integrate a push provider rather than reducing WorkManager's minimum interval or keeping a permanent background service alive.
 
 ## Server endpoint
@@ -44,7 +50,7 @@ To diagnose a missing background alert, first confirm the app is signed in and a
 
 - The application requires HTTPS and access to the deployed server. The WebView and background worker use the same session cookies.
 - Android 15 and newer draw app content behind system bars by default. The native container applies status, cutout, navigation and keyboard insets so the chat stays visible and usable.
-- Voice recording needs microphone permission; choosing files uses the Android file picker without broad storage permission.
+- Voice recording needs microphone permission and uses a private temporary M4A file; choosing files uses the Android file picker without broad storage permission.
 - Online status uses WebSocket and HTTP heartbeats. It can take about 75 seconds after closing the app to change to last seen. Both need the updated server image deployed.
 - Downloaded attachments go to the device's Downloads folder. Users should treat them as local copies of private media.
 - If the deployment hostname changes, update `MainActivity.HOST`, `HOME_URL` and the app-link host in `AndroidManifest.xml`, then build a new APK.

@@ -6,9 +6,12 @@
 python manage.py test --settings=chatapp_project.test_settings
 python manage.py makemigrations --check --dry-run --settings=chatapp_project.test_settings
 python manage.py check --settings=chatapp_project.test_settings
+pip-audit -r requirements.txt --ignore-vuln GHSA-8pqf-f4m5-798g
 ```
 
 The test settings isolate database and Redis settings from your `.env`, use fast test-only password hashes and disable HTTPS redirects for the local test client. Never run a deployed service with test settings.
+
+The dependency audit checks pinned runtime packages against published advisories. The single ignored Twisted advisory concerns its unused IMAP parser and has no listed patched version; see the [security review](SECURITY_REVIEW.md). Reassess this exception when upstream publishes a fix. CI runs the audit on every pull request.
 
 Coverage includes authentication, POST-only logout and CSRF enforcement; canonical conversation pairs; authorization for history, sends and private downloads; group creation and membership boundaries; 5 MiB boundaries; actual-image detection and spoofed files; audio container handling; duplicate-send recovery; history cursors; independent group read cursors; receipt ownership; safe JSON embedding; query counts; admin pages; WebSocket payload validation and origins; and preservation of legacy messages during migration.
 

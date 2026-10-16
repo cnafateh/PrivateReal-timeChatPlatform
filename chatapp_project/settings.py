@@ -37,9 +37,9 @@ SECRET_KEY = os.getenv(
     "django-insecure-development-only-key",
 )
 
-DEBUG = env_bool("DEBUG", True)
+DEBUG = env_bool("DEBUG", False)
 
-if not DEBUG and SECRET_KEY == "django-insecure-development-only-key":
+if not DEBUG and (SECRET_KEY == "django-insecure-development-only-key" or SECRET_KEY.startswith("replace-")):
     raise RuntimeError(
         "DJANGO_SECRET_KEY must be set when DEBUG=False"
     )
@@ -92,6 +92,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
 
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "chat.monitoring.RequestMetricsMiddleware",
 
     "django.contrib.messages.middleware.MessageMiddleware",
 
@@ -325,7 +326,7 @@ SECURE_PROXY_SSL_HEADER = (
     "https",
 )
 
-USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_HOST = env_bool("USE_X_FORWARDED_HOST", False)
 
 
 SECURE_SSL_REDIRECT = env_bool(

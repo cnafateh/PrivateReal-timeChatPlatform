@@ -14,6 +14,7 @@ from django.template.loader import render_to_string
 from django.views.decorators.http import require_GET, require_POST
 
 from .forms import ProfileForm, RegisterForm
+from .auth_limits import clear_login_failures, login_is_limited, note_login_failure
 from .models import GroupChat, GroupMembership, Message, PrivateChat, Profile
 from .services import MAX_MESSAGE_LENGTH, broadcast, broadcast_group, broadcast_inbox, inspect_upload, serialize_message
 
@@ -22,11 +23,16 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect("inbox")
     if request.method == "POST":
-        user = authenticate(request, username=request.POST.get("username", "").strip(),
-                            password=request.POST.get("password", ""))
+        username = request.POST.get("username", "").strip()[:150]
+        if login_is_limited(username):
+            messages.error(request, "Too many attempts. Try again in 15 minutes.")
+            return render(request, "chat/login.html", status=429)
+        user = authenticate(request, username=username, password=request.POST.get("password", ""))
         if user:
+            clear_login_failures(username)
             login(request, user)
             return redirect("inbox")
+        note_login_failure(username)
         messages.error(request, "Invalid username or password.")
     return render(request, "chat/login.html")
 
@@ -470,6 +476,11 @@ def profile_avatar(request, public_id):
     except FileNotFoundError:
         raise Http404
     response = FileResponse(stream, content_type="image/png")
-    response["Cache-Control"] = "private, no-store"
+    version = profile.avatar_url.rsplit("=", 1)[-1]
+    response["Cache-Control"] = (
+        "private, max-age=2592000, immutable" if request.GET.get("v") == version
+        else "private, no-cache"
+    )
     response["X-Content-Type-Options"] = "nosniff"
+    response["Vary"] = "Cookie"
     return response

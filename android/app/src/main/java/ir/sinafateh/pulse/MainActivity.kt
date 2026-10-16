@@ -13,6 +13,8 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.graphics.Color
+import android.media.MediaRecorder
+import android.util.Base64
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.widget.FrameLayout
@@ -41,6 +43,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
+import java.io.File
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
@@ -56,6 +59,10 @@ class MainActivity : Activity() {
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var microphoneRequest: PermissionRequest? = null
     private var microphoneReply: JavaScriptReplyProxy? = null
+    private var voiceRecorder: MediaRecorder? = null
+    private var voiceFile: File? = null
+    private var voiceReply: JavaScriptReplyProxy? = null
+    private var pendingVoiceStart = false
     private var foreground = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,6 +103,19 @@ class MainActivity : Activity() {
                             requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), AUDIO_REQUEST)
                         }
                     }
+                    "voice_start" -> runOnUiThread {
+                        if (voiceRecorder != null || pendingVoiceStart) {
+                            voiceEvent(reply, "voice_error", "Recording is already active.")
+                        } else if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                            startVoice(reply)
+                        } else {
+                            voiceReply = reply
+                            pendingVoiceStart = true
+                            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), VOICE_AUDIO_REQUEST)
+                        }
+                    }
+                    "voice_stop" -> runOnUiThread { stopVoice() }
+                    "voice_cancel" -> runOnUiThread { releaseVoice() }
                 }
             }
         }
@@ -233,6 +253,13 @@ class MainActivity : Activity() {
             if (granted) {
                 request?.grant(arrayOf(PermissionRequest.RESOURCE_AUDIO_CAPTURE))
             } else request?.deny()
+        } else if (requestCode == VOICE_AUDIO_REQUEST) {
+            pendingVoiceStart = false
+            val reply = voiceReply
+            if (reply != null) {
+                if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) startVoice(reply)
+                else { voiceEvent(reply, "voice_error", "Allow microphone access in Android settings."); voiceReply = null }
+            }
         } else if (requestCode == NOTIFICATION_REQUEST) {
             if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
                 WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<UnreadWorker>().build())
@@ -263,6 +290,10 @@ class MainActivity : Activity() {
     }
 
     override fun onPause() {
+        if (voiceRecorder != null) {
+            voiceReply?.let { voiceEvent(it, "voice_error", "Recording stopped when the app left the screen.") }
+            releaseVoice()
+        }
         foreground = false
         NotificationHandler.setActiveConversation(null)
         foregroundHandler.removeCallbacks(foregroundCheck)
@@ -288,11 +319,78 @@ class MainActivity : Activity() {
             .edit().putString("session_cookie", cookie).apply()
     }
 
+    private fun voiceEvent(reply: JavaScriptReplyProxy, type: String, detail: String? = null) {
+        try {
+            reply.postMessage(JSONObject().put("type", type).apply {
+                if (detail != null) put("detail", detail)
+            }.toString())
+        } catch (_: Exception) { }
+    }
+
+    private fun startVoice(reply: JavaScriptReplyProxy) {
+        voiceReply = reply
+        try {
+            val file = File.createTempFile("pulse-voice-", ".m4a", cacheDir)
+            voiceFile = file
+            @Suppress("DEPRECATION")
+            val recorder = if (Build.VERSION.SDK_INT >= 31) MediaRecorder(this) else MediaRecorder()
+            voiceRecorder = recorder
+            recorder.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setAudioEncodingBitRate(64000)
+                setAudioSamplingRate(44100)
+                setOutputFile(file.absolutePath)
+                prepare()
+                start()
+            }
+            voiceEvent(reply, "voice_started")
+        } catch (_: Exception) {
+            voiceEvent(reply, "voice_error", "Could not start microphone recording. Check microphone permission and close other recording apps.")
+            releaseVoice()
+        }
+    }
+
+    private fun stopVoice() {
+        val recorder = voiceRecorder ?: return
+        val reply = voiceReply ?: run { releaseVoice(); return }
+        try {
+            recorder.stop()
+            recorder.release()
+            voiceRecorder = null
+            val bytes = voiceFile?.readBytes() ?: throw IllegalStateException("Recording unavailable")
+            if (bytes.isEmpty() || bytes.size > MAX_VOICE_BYTES) throw IllegalStateException("Recording is empty or too large")
+            for (offset in bytes.indices step VOICE_CHUNK_BYTES) {
+                val end = minOf(offset + VOICE_CHUNK_BYTES, bytes.size)
+                voiceEvent(reply, "voice_chunk", Base64.encodeToString(bytes, offset, end - offset, Base64.NO_WRAP))
+            }
+            voiceEvent(reply, "voice_complete")
+        } catch (_: Exception) {
+            voiceEvent(reply, "voice_error", "Recording failed. Please try again.")
+        } finally {
+            releaseVoice()
+        }
+    }
+
+    private fun releaseVoice() {
+        try { voiceRecorder?.reset() } catch (_: Exception) { }
+        try { voiceRecorder?.release() } catch (_: Exception) { }
+        voiceRecorder = null
+        voiceFile?.delete()
+        voiceFile = null
+        voiceReply = null
+        pendingVoiceStart = false
+    }
+
     companion object {
         const val HOST = "chat.sinafateh.ir"
         const val HOME_URL = "https://chat.sinafateh.ir/"
         private const val FILE_REQUEST = 100
         private const val AUDIO_REQUEST = 101
         private const val NOTIFICATION_REQUEST = 102
+        private const val VOICE_AUDIO_REQUEST = 103
+        private const val MAX_VOICE_BYTES = 5 * 1024 * 1024
+        private const val VOICE_CHUNK_BYTES = 48 * 1024
     }
 }

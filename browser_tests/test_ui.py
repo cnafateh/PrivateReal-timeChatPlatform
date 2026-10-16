@@ -208,6 +208,7 @@ class BrowserTests(StaticLiveServerTestCase):
         if os.environ.get("BROWSER_SCREENSHOT_DIR"):
             page.screenshot(animations="disabled", path=os.path.join(os.environ["BROWSER_SCREENSHOT_DIR"], "profile-mobile.png"))
         page.get_by_role('link', name='Back to conversations', exact=True).click()
+        page.wait_for_url(f"{self.live_server_url}/")
         page.goto(f"{self.live_server_url}/chat/{self.bob.profile.public_id}/")
         page.get_by_role('link', name='View profile', exact=True).click()
         expect(page.locator('.profile-card h2')).to_have_text('bob')

@@ -36,6 +36,12 @@ class GroupConversationTests(TransactionTestCase):
         fields.setdefault("client_id", str(uuid.uuid4()))
         return self.client.post(reverse("group_send_message", args=[self.group.public_id]), fields)
 
+    def test_oversized_group_upload_is_rejected_before_persistence(self):
+        upload = SimpleUploadedFile("large.bin", b"x" * (6 * 1024 * 1024 + 1))
+        response = self.send(file=upload, message="Must not save")
+        self.assertEqual(response.status_code, 413)
+        self.assertFalse(Message.objects.filter(content="Must not save").exists())
+
     def test_admin_creates_group_and_manages_members(self):
         self.client.force_login(self.admin)
         add = reverse("admin:chat_groupchat_add")

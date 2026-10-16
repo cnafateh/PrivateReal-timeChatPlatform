@@ -23,6 +23,7 @@ jobs:
           python-version: ${{ matrix.python }}
           cache: pip
       - run: pip install -r requirements-dev.txt
+      - run: pip-audit -r requirements.txt --ignore-vuln GHSA-8pqf-f4m5-798g
       - run: python manage.py check --settings=chatapp_project.test_settings
       - run: python manage.py makemigrations --check --dry-run --settings=chatapp_project.test_settings
       - run: coverage run --source=chat --omit='chat/migrations/*,chat/test*' manage.py test --settings=chatapp_project.test_settings
