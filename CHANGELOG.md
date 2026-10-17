@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Public domain
+
+- Move the canonical website and Android app origin to `https://pulsetalk.ir/`, including deep links and notification checks.
+- Clear the Android worker's saved session from the previous host on upgrade and advance the app version to 1.4.1.
+- Document the production host, CSRF and proxy settings required for the new domain.
+
 ### Operations, Android audio and security
 
 - Add a private operations dashboard with database, Redis and media checks, 24-hour HTTP trends, and bounded server-error summaries.

@@ -35,6 +35,10 @@ If the File Browser service needs the files, mount `/srv/chatapp/media` into it 
 
 The optional existing `DJANGO_SUPERUSER_USERNAME`, `DJANGO_SUPERUSER_EMAIL` and `DJANGO_SUPERUSER_PASSWORD` startup variables create an administrator only if that username does not already exist. Prefer `createsuperuser` interactively and avoid leaving an administrator password in deployment configuration.
 
+The canonical public host is `pulsetalk.ir`. For a deployment outside `compose.production.yml`, set `ALLOWED_HOSTS=pulsetalk.ir` and `CSRF_TRUSTED_ORIGINS=https://pulsetalk.ir` in its production environment. The supplied production Compose file sets both values explicitly. Point the HTTPS reverse proxy and DNS at the same host, then verify login, CSRF-protected forms, WebSocket connections, private downloads and `/monitor/` at `https://pulsetalk.ir/`. If you also serve `www.pulsetalk.ir`, redirect it to the canonical host at the proxy; the Android app accepts only the canonical host.
+
+Changing a hostname changes the browser's cookie scope. Users must sign in again on the new domain. The Android 1.4.1 update clears its locally saved old-host notification cookie and message cursor on first launch; the signed APK can update the previous signed version without uninstalling it. Keep the same Django secret key and existing database/media volumes during the move. If the old hostname remains reachable temporarily, redirect it to the new HTTPS address at the proxy after confirming the new site works.
+
 ## Production checklist
 
 1. Use PostgreSQL and Redis. An in-memory channel layer cannot share events between workers.

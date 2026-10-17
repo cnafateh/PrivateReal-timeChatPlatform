@@ -67,6 +67,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        clearStaleServerSession()
         webView = WebView(this)
         val container = FrameLayout(this).apply {
             setBackgroundColor(Color.rgb(18, 22, 32))
@@ -319,6 +320,14 @@ class MainActivity : Activity() {
             .edit().putString("session_cookie", cookie).apply()
     }
 
+    private fun clearStaleServerSession() {
+        val prefs = getSharedPreferences("unread", Context.MODE_PRIVATE)
+        if (prefs.getString("server_host", null) != HOST) {
+            prefs.edit().remove("session_cookie").remove("last_message_id")
+                .remove("user_id").putString("server_host", HOST).apply()
+        }
+    }
+
     private fun voiceEvent(reply: JavaScriptReplyProxy, type: String, detail: String? = null) {
         try {
             reply.postMessage(JSONObject().put("type", type).apply {
@@ -384,8 +393,8 @@ class MainActivity : Activity() {
     }
 
     companion object {
-        const val HOST = "chat.sinafateh.ir"
-        const val HOME_URL = "https://chat.sinafateh.ir/"
+        const val HOST = "pulsetalk.ir"
+        const val HOME_URL = "https://pulsetalk.ir/"
         private const val FILE_REQUEST = 100
         private const val AUDIO_REQUEST = 101
         private const val NOTIFICATION_REQUEST = 102
