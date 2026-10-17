@@ -11,6 +11,8 @@ services:
       CSRF_COOKIE_SECURE: "True"
       MEDIA_ROOT: /app/media
       REDIS_URL: redis://redis:6379/0
+      ALLOWED_HOSTS: pulsetalk.ir
+      CSRF_TRUSTED_ORIGINS: https://pulsetalk.ir
     volumes:
       - type: bind
         source: /srv/chatapp/media

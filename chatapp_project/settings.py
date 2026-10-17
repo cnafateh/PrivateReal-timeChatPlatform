@@ -47,11 +47,12 @@ if not DEBUG and (SECRET_KEY == "django-insecure-development-only-key" or SECRET
 
 ALLOWED_HOSTS = env_list(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1",
+    "localhost,127.0.0.1,pulsetalk.ir",
 )
 
 CSRF_TRUSTED_ORIGINS = env_list(
-    "CSRF_TRUSTED_ORIGINS"
+    "CSRF_TRUSTED_ORIGINS",
+    "https://pulsetalk.ir",
 )
 
 
