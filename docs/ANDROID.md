@@ -1,6 +1,6 @@
 # Android application: architecture and releases
 
-The Android project lives in `android/` in this repository. It uses the existing responsive chat interface inside a locked-down WebView, so message rendering, replies, themes, profiles and uploads match the website. The native shell supplies voice recording, file selection, private downloads, deep links and notifications. It connects only to `https://chat.sinafateh.ir/` for app pages; external links open in the device browser. TLS errors are never bypassed.
+The Android project lives in `android/` in this repository. It uses the existing responsive chat interface inside a locked-down WebView, so message rendering, replies, themes, profiles and uploads match the website. The native shell supplies voice recording, file selection, private downloads, deep links and notifications. It connects only to `https://pulsetalk.ir/` for app pages; external links open in the device browser. TLS errors are never bypassed.
 
 ## Why a WebView wrapper?
 
@@ -48,9 +48,9 @@ To diagnose a missing background alert, first confirm the app is signed in and a
 
 ## Operational notes
 
-- The application requires HTTPS and access to the deployed server. The WebView and background worker use the same session cookies.
+- The application requires HTTPS and access to the deployed server. The WebView and background worker use the same session cookies. Version 1.4.1 moves the app to `pulsetalk.ir`; the first launch clears the notification worker's saved session and message cursor from the previous host. Sign in on the new site to resume alerts. Install the signed 1.4.1 APK over the previous signed version; the signing key and package name stay the same.
 - Android 15 and newer draw app content behind system bars by default. The native container applies status, cutout, navigation and keyboard insets so the chat stays visible and usable.
 - Voice recording needs microphone permission and uses a private temporary M4A file; choosing files uses the Android file picker without broad storage permission.
 - Online status uses WebSocket and HTTP heartbeats. It can take about 75 seconds after closing the app to change to last seen. Both need the updated server image deployed.
 - Downloaded attachments go to the device's Downloads folder. Users should treat them as local copies of private media.
-- If the deployment hostname changes, update `MainActivity.HOST`, `HOME_URL` and the app-link host in `AndroidManifest.xml`, then build a new APK.
+- If the deployment hostname changes, update `MainActivity.HOST`, `HOME_URL` and the app-link host in `AndroidManifest.xml`, increase both Android version values, and build a new signed APK. The worker derives its API URL from `HOME_URL`; the WebView bridge, downloads and deep links are restricted to `HOST`. Configure Android App Links verification for the new host by serving its Digital Asset Links file with the production signing certificate fingerprint. Without that file, a matching link may open in a browser or show an app chooser instead of opening Pulse directly.

@@ -64,6 +64,8 @@ Open <http://localhost:8080>. Compose starts Django/Daphne, PostgreSQL, Redis an
 
 For public hosting and upgrades, follow [deployment instructions](docs/DEPLOYMENT.md). The provided Compose file binds to localhost; configure your trusted HTTPS proxy before exposing the service.
 
+The canonical production site is <https://pulsetalk.ir/>. The [deployment guide](docs/DEPLOYMENT.md) covers its Django host/CSRF settings, reverse proxy and migration from an earlier hostname. The [Android guide](docs/ANDROID.md) explains how the app and its signed updates connect to the same host.
+
 For a server with external database and proxy networks, use [the production Compose example](compose.production.yml) after following the [media migration guide](docs/STORAGE.md). It keeps uploaded avatars and attachments in `/srv/chatapp/media` on the host. The `latest` image is published from `main` after tests pass.
 
 ## Tests
